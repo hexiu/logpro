@@ -1,0 +1,10 @@
+[StandAlone]2019/01/03 19:08:10.746928 parsing time "[2019-01-02" as "2006-01-02 ": cannot parse "[2019-01-02" as "2006"
+[StandAlone]2019/01/03 19:08:50.630954 parsing time "[2019-01-02" as "2006-01-02 ": cannot parse "[2019-01-02" as "2006"
+[StandAlone]2019/01/03 19:08:53.837627 parsing time "[2019-01-02" as "2006-01-02 ": cannot parse "[2019-01-02" as "2006"
+[StandAlone]2019/01/03 19:16:54.338504 parsing time "2018-01-02 19:45:20": hour out of range
+[StandAlone]2019/01/03 20:14:41.528139 parsing time "019-01-02" as "2006-01-0": cannot parse "01-02" as "2006"
+[StandAlone]2019/01/03 20:18:19.390054 parsing time "2019-01-02 19:45:00" as "2006-01-02 15:04:36": cannot parse "" as "6"
+[StandAlone]2019/01/03 20:18:29.336257 parsing time "2019-01-02 19:45:01" as "2006-01-02 15:04:36": cannot parse "" as "6"
+[StandAlone]2019/01/03 20:18:37.531166 parsing time "2019-01-02 19:45:11" as "2006-01-02 15:04:36": cannot parse "" as "6"
+[StandAlone]2019/01/03 20:21:33.806570 parsing time "2019-01-02 19:45:00" as "2006-01-02 15:04:36": cannot parse "" as "6"
+[StandAlone]2019/01/03 20:22:14.983791 parsing time "2019-01-02 19:45:16": hour out of range
