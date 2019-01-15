@@ -143,7 +143,7 @@ func (alog *AccessLog) ToInt64(str string) int64 {
 }
 
 // ReadFileFirstLine 读取文件的第一行
-func ReadFileFirstLine(filename string) (alog *AccessLog) {
+func ReadFileFirstLine(filename string) (line string) {
 	file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	defer file.Close()
 	if err != nil {
@@ -152,14 +152,14 @@ func ReadFileFirstLine(filename string) (alog *AccessLog) {
 	var linebyte = make([]byte, 5*logger.KB)
 	length, err := file.Read(linebyte)
 	if length < 0 {
-		return alog
+		return ""
 	}
 	if err != nil && err != io.EOF {
 		panic(err)
 	}
 	linebuf := bytes.NewReader(linebyte)
 	linebufio := bufio.NewReader(linebuf)
-	line, _, err := linebufio.ReadLine()
+	lineb, _, err := linebufio.ReadLine()
 	if err != nil {
 		panic(err)
 	}
@@ -167,11 +167,11 @@ func ReadFileFirstLine(filename string) (alog *AccessLog) {
 		return
 	}
 
-	return NewAccessLog(string(line))
+	return string(lineb)
 }
 
 // ReadFileLastLine 读取文件的最后一行
-func ReadFileLastLine(filename string) (alog *AccessLog) {
+func ReadFileLastLine(filename string) (line string) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		panic(err)
@@ -189,7 +189,7 @@ func ReadFileLastLine(filename string) (alog *AccessLog) {
 	DeBugPrintln("file: ", filename, "filesize:", stat.Size())
 	length, err := file.ReadAt(linebyte, indexlog)
 	if length < 0 {
-		return nil
+		return ""
 	}
 	if err != nil && err != io.EOF {
 		panic(err)
@@ -197,11 +197,11 @@ func ReadFileLastLine(filename string) (alog *AccessLog) {
 	linebuf := string(linebyte)
 	linelist := strings.Split(linebuf, "\n")
 	if len(linelist) < 2 {
-		return nil
+		return ""
 	}
-	line := linelist[len(linelist)-2:][0]
+	line = linelist[len(linelist)-2:][0]
 	DeBugPrintln(string(line))
-	return NewAccessLog(string(line))
+	return line
 }
 
 func readFirstLine(linedata *[]byte) (alog *AccessLog) {
@@ -255,6 +255,12 @@ func NewAccessFile(filename string) *AccessFile {
 	}
 }
 
+// Close 关闭日志文件
+func (afile *AccessFile) Close() {
+	afile.File.Close()
+	return
+}
+
 // Init AccessFile 初始化
 func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 	var err error
@@ -271,8 +277,8 @@ func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 	if err != nil {
 		panic(err)
 	}
-	afile.FirstLine = ReadFileFirstLine(afile.Filename)
-	afile.LastLine = ReadFileLastLine(afile.Filename)
+	afile.FirstLine = NewAccessLog(ReadFileFirstLine(afile.Filename))
+	afile.LastLine = NewAccessLog(ReadFileLastLine(afile.Filename))
 	if afile.FirstLine == nil || afile.LastLine == nil {
 		return false
 	}
@@ -334,15 +340,15 @@ func (apro *AccessPro) AddLog(alog *AccessLog, host, directory string) bool {
 			if alog.accessTimeToTime().Sub(apro.StartWarn) >= 0 && alog.accessTimeToTime().Sub(apro.EndWarn) <= 0 {
 				apro.LogInfo = append(apro.LogInfo, alog)
 				apro.AllNum++
-				return true
 			}
 		}
-		return true
 	} else {
-		apro.LogInfo = append(apro.LogInfo, alog)
-		apro.AllNum++
-		return true
+		if alog.accessTimeToTime().Sub(apro.StartWarn) >= 0 && alog.accessTimeToTime().Sub(apro.EndWarn) <= 0 {
+			apro.LogInfo = append(apro.LogInfo, alog)
+			apro.AllNum++
+		}
 	}
+	return true
 }
 
 // NewAccessPro 创建一个新的访问日志处理器
@@ -514,12 +520,6 @@ func (si *SomeInfo) Sort() {
 	}
 }
 
-// FilterInfo 过滤对象
-type FilterInfo struct {
-	CodePro   *SomeInfo
-	MethodPro *SomeInfo
-}
-
 // FilterPro 日志处理器
 type FilterPro struct {
 	LogInfo []*AccessLog
@@ -684,11 +684,5 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 
 	out := filterpro.String(dirt, format, outline, sort)
 	fmt.Println(out)
-	return
-}
-
-// Close 关闭日志文件
-func (afile *AccessFile) Close() {
-	afile.File.Close()
 	return
 }
