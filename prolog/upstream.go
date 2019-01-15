@@ -506,56 +506,39 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 		if host == "" {
 			filterpro.Host.Add(ulog.OriginalDomain)
 			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
-			match := ulog.Filter(content)
-			if err != nil {
-				return nil, err
-			}
-			// match 说明返回码正常是0
-			if content == "0" {
-				match = !match
-			}
-			if !match {
-				DeBugPrintln("code:", ulog.ErrCode)
-				filterpro.ErrCode.Add(ulog.ErrCode)
-				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-				filterpro.URLErr.Add(ulog.OriginalDomain)
-			}
+
+			DeBugPrintln("code:", ulog.ErrCode)
+			filterpro.ErrCode.Add(ulog.ErrCode)
+			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+			filterpro.URLErr.Add(ulog.OriginalDomain)
+
 		} else {
 			if strings.Contains(ulog.OriginalDomain, host) {
 				filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 				filterpro.Host.Add(ulog.OriginalDomain)
 				direct := strings.Split(ulog.URL, "/")[1]
-				match := ulog.Filter(content)
-				if err != nil {
-					return nil, err
-				}
-				// match 说明返回码正常是0
-				if content == "0" {
-					match = !match
-				}
-				if !match {
-					if dirt {
-						// flag 标识 是否包含uri
-						if flag {
-							if strings.Contains(ulog.URL, directory) {
-								filterpro.URLErr.Add(ulog.URL)
-								filterpro.ErrCode.Add(ulog.ErrCode)
-								filterpro.UpstreamIP.Add(ulog.UpstreamIP)
 
-							}
-						} else {
-							if strings.Contains(ulog.URL, directory) {
-								filterpro.URLErr.Add(direct)
-								filterpro.ErrCode.Add(ulog.ErrCode)
-								filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-							}
-						}
-					} else {
-						if strings.Contains(ulog.BackCode, content) {
+				if dirt {
+					// flag 标识 是否包含uri
+					if flag {
+						if strings.Contains(ulog.URL, directory) {
+							filterpro.URLErr.Add(ulog.URL)
 							filterpro.ErrCode.Add(ulog.ErrCode)
 							filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-							filterpro.URLErr.Add(ulog.URL)
+
 						}
+					} else {
+						if strings.Contains(ulog.URL, directory) {
+							filterpro.URLErr.Add(direct)
+							filterpro.ErrCode.Add(ulog.ErrCode)
+							filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+						}
+					}
+				} else {
+					if strings.Contains(ulog.BackCode, content) {
+						filterpro.ErrCode.Add(ulog.ErrCode)
+						filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+						filterpro.URLErr.Add(ulog.URL)
 					}
 				}
 
