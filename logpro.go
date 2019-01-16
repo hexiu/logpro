@@ -52,7 +52,7 @@ func initUpstream() (ups cli.Command) {
 	return ups
 }
 
-func initAccessFlag(app *cli.Command) {
+func initUpstreamFlag(app *cli.Command) {
 	logpath := cli.StringFlag{
 		Name:  "path,p",
 		Usage: "/path/to/directory",
@@ -118,6 +118,53 @@ func initAccessFlag(app *cli.Command) {
 	return
 }
 
+func commUAction(c *cli.Context) {
+	if c.Bool("debug") {
+		prolog.SetLevel(logs.LevelDebug)
+	}
+	path := c.String("path")
+	if path[0] != '/' {
+		basepath, err := filepath.Abs(".")
+		if err != nil {
+			panic(err)
+		}
+		path = filepath.Join(basepath, path)
+	}
+	files, err := prolog.ListDirFile(path, `(hy_access)|(upstream)`)
+	if err != nil {
+		log.Println(err)
+	}
+	var stime time.Time
+	var etime time.Time
+	var datasize int64 = 5
+	size := c.Uint64("datasize")
+	if size != 0 {
+		datasize = int64(size)
+	}
+	if c.String("etime") == "" {
+		etime = time.Now()
+		timegap := 15 * 60
+		stime = etime.Add(-time.Duration(timegap) * time.Second)
+	} else {
+		if c.String("stime") == "" {
+			timegap := c.Uint64("timegap")
+			if timegap < 0 && timegap >= 60*50 {
+				log.Fatalln("not supported!, timegap should in 1 ~ 60*50!")
+			}
+			etime = timepro.StringToTime(c.String("etime"))
+			stime = etime.Add(-time.Duration(timegap) * time.Second)
+		} else {
+			stime = timepro.StringToTime(c.String("stime"))
+			etime = timepro.StringToTime(c.String("etime"))
+		}
+	}
+	apro := prolog.NewUpstreamPro(stime, etime, datasize)
+	apro.ProLogFile(files, c.String("domain"))
+	apro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
+	fmt.Println("参数是: ")
+	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
+}
+
 func commAction(c *cli.Context) {
 	if c.Bool("debug") {
 		prolog.SetLevel(logs.LevelDebug)
@@ -165,7 +212,7 @@ func commAction(c *cli.Context) {
 	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
 }
 
-func initUpstreamFlag(app *cli.Command) {
+func initAccessFlag(app *cli.Command) {
 	logpath := cli.StringFlag{
 		Name:  "path,p",
 		Usage: "/path/to/directory",
@@ -235,51 +282,4 @@ func initUpstreamFlag(app *cli.Command) {
 	app.Flags = append(app.Flags, logout)
 	app.Flags = append(app.Flags, logsort)
 	return
-}
-
-func commUAction(c *cli.Context) {
-	if c.Bool("debug") {
-		prolog.SetLevel(logs.LevelDebug)
-	}
-	path := c.String("path")
-	if path[0] != '/' {
-		basepath, err := filepath.Abs(".")
-		if err != nil {
-			panic(err)
-		}
-		path = filepath.Join(basepath, path)
-	}
-	files, err := prolog.ListDirFile(path, "[hy_access,upstream]")
-	if err != nil {
-		log.Println(err)
-	}
-	var stime time.Time
-	var etime time.Time
-	var datasize int64 = 5
-	size := c.Uint64("datasize")
-	if size != 0 {
-		datasize = int64(size)
-	}
-	if c.String("etime") == "" {
-		etime = time.Now()
-		timegap := 15 * 60
-		stime = etime.Add(-time.Duration(timegap) * time.Second)
-	} else {
-		if c.String("stime") == "" {
-			timegap := c.Uint64("timegap")
-			if timegap < 0 && timegap >= 60*50 {
-				log.Fatalln("not supported!, timegap should in 1 ~ 60*50!")
-			}
-			etime = timepro.StringToTime(c.String("etime"))
-			stime = etime.Add(-time.Duration(timegap) * time.Second)
-		} else {
-			stime = timepro.StringToTime(c.String("stime"))
-			etime = timepro.StringToTime(c.String("etime"))
-		}
-	}
-	apro := prolog.NewUpstreamPro(stime, etime, datasize)
-	apro.ProLogFile(files, c.String("domain"))
-	apro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
-	fmt.Println("参数是: ")
-	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
 }
