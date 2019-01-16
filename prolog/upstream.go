@@ -456,7 +456,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
-			out += fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2), "%")
+			out += fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
 		}
 	}
 	out += "\n"
@@ -473,7 +473,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
-			out += fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2), "%")
+			out += fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
 		}
 	}
 	if jsondata {
