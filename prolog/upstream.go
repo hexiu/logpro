@@ -494,7 +494,7 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 		peach := "/"
 		if match, _ := regexp.Match(peach, []byte(host)); match {
 			match, _ := regexp.Compile(peach)
-			index := match.FindAllIndex([]byte(host), 1)
+			index := match.FindAllIndex([]byte(host), -1)
 			directory = host[index[0][0]:]
 			DeBugPrintln(directory)
 		}

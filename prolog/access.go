@@ -643,7 +643,7 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 				return nil, err
 			}
 			if match {
-				if strings.Contains(alog.BackCode, content) {
+				if match {
 					filterpro.URLErr.Add(alog.Host)
 					filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.FileSize))
 				}
@@ -660,18 +660,18 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 				if match {
 					if dirt {
 						if flag {
-							if strings.Contains(alog.BackCode, content) && strings.Contains(alog.URL, directory) {
+							if match && strings.Contains(alog.URL, directory) {
 								filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.FileSize))
 								filterpro.URLErr.Add(alog.URL)
 							}
 						} else {
-							if strings.Contains(alog.BackCode, content) {
+							if match {
 								filterpro.Flux.AddNum(direct, alog.ToInt64(alog.FileSize))
 								filterpro.URLErr.Add(direct)
 							}
 						}
 					} else {
-						if strings.Contains(alog.BackCode, content) {
+						if match {
 							filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.FileSize))
 							filterpro.URLErr.Add(alog.URL)
 						}
