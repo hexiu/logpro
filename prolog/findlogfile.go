@@ -25,11 +25,8 @@ func ListDirFile(root string, peach string) (files []string, err error) {
 			if peach == "" {
 				files = append(files, path)
 			} else {
-				match, err := regexp.Match(peach, []byte(path))
-				if err != nil {
-					return err
-				}
-				if match {
+				reg := regexp.MustCompile(peach)
+				if len(reg.FindAll([]byte(path), -1)) > 0 {
 					files = append(files, path)
 				}
 			}
