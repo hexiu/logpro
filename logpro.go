@@ -184,6 +184,9 @@ func commAction(c *cli.Context) {
 	var stime time.Time
 	var etime time.Time
 	var datasize int64 = 5
+	var retcode string
+	retcode = c.String("retcode")
+	fmt.Println(c.String("retcode"), retcode)
 	size := c.Uint64("datasize")
 	if size != 0 {
 		datasize = int64(size)
@@ -207,9 +210,9 @@ func commAction(c *cli.Context) {
 	}
 	apro := prolog.NewAccessPro(stime, etime, datasize)
 	apro.ProLogFile(files, c.String("domain"))
-	apro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
+	apro.Filter(retcode, c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
 	fmt.Println("参数是: ")
-	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
+	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", retcode, c.String("domain"))
 }
 
 func initAccessFlag(app *cli.Command) {
