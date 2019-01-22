@@ -15,11 +15,11 @@ import (
 )
 
 func initVersion(app *cli.App) {
-	app.Version = "1.0.0"
+	app.Version = "1.0.10"
 }
 
 func main() {
-	fmt.Println("log pro! mail: jaxiuhe@tencent.com.")
+	// fmt.Println("log pro! mail: jaxiuhe@tencent.com.")
 	app := cli.NewApp()
 	initVersion(app)
 	app.Name = "logpro"
@@ -186,7 +186,6 @@ func commAction(c *cli.Context) {
 	var datasize int64 = 5
 	var retcode string
 	retcode = c.String("retcode")
-	fmt.Println(c.String("retcode"), retcode)
 	size := c.Uint64("datasize")
 	if size != 0 {
 		datasize = int64(size)
