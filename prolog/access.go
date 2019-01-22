@@ -34,7 +34,7 @@ type AccessLog struct {
 	Mtime               string
 	BackCode            string
 	BackeHeaderSize     string
-	SendDataSzie        string
+	SendDataSize        string
 	Referer             string
 	Host                string
 	UserAgent           string
@@ -75,7 +75,7 @@ func NewAccessLog(line string) *AccessLog {
 		Mtime:               linelist[11],
 		BackCode:            linelist[12],
 		BackeHeaderSize:     linelist[13],
-		SendDataSzie:        linelist[14],
+		SendDataSize:        linelist[14],
 		Referer:             linelist[15],
 		Host:                linelist[16],
 		UserAgent:           linelist[17],
@@ -307,6 +307,12 @@ func (afile *AccessFile) JudgeContains(starttime, warntime time.Time) {
 		afile.Some = true
 		return
 	}
+	if afile.FirstLine.accessTimeToTime().Sub(starttime) > 0 && warntime.Sub(afile.LastLine.accessTimeToTime()) > 0 {
+		afile.All = false
+		afile.Some = true
+		return
+	}
+
 	return
 }
 
@@ -401,7 +407,7 @@ func (apro *AccessPro) ProLogFile(files []string, host string) {
 	}
 	wg := sync.WaitGroup{}
 	DeBugPrintln("filternum:", len(files), len(apro.LogFile))
-	zonesize := 50 * logger.MB
+	zonesize := 20 * logger.MB
 	for _, af := range apro.LogFile {
 		var n int64
 		DeBugPrintln(af.Filename)
@@ -558,6 +564,7 @@ func (fp *FilterPro) Count() int {
 }
 
 func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) (out string) {
+	var jsonapi = make(map[string][][]string, 0)
 	var outdata [][]string
 	var list []string
 	if dirt {
@@ -574,13 +581,14 @@ func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) 
 		}
 		for _, url := range list[:length] {
 			if jsondata {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
 				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "MB\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
+		jsonapi["uri"] = outdata
 
 	} else {
 		if sort == "flux" {
@@ -596,16 +604,18 @@ func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) 
 		}
 		for _, url := range list[:length] {
 			if jsondata {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
 				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "MB\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
+		jsonapi["uri"] = outdata
 	}
+
 	if jsondata {
-		jsonstr, _ := json.Marshal(outdata)
+		jsonstr, _ := json.Marshal(jsonapi)
 		return string(jsonstr)
 	}
 	return out
@@ -634,9 +644,9 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 		host = strings.Split(host, "/")[0]
 	}
 
-	for _, alog := range apro.LogInfo {
-		filterpro.Add(alog)
-		if host == "" {
+	if host == "" {
+		for _, alog := range apro.LogInfo {
+			filterpro.Add(alog)
 			filterpro.URL.Add(alog.Host)
 			match, err := alog.Filter(content)
 			if err != nil {
@@ -645,41 +655,42 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 			if match {
 				if match {
 					filterpro.URLErr.Add(alog.Host)
-					filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.FileSize))
+					filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
 				}
 			}
-		} else {
-			if strings.Contains(alog.Host, host) {
-				filterpro.URL.Add(alog.URL)
-				direct := strings.Split(alog.URL, "/")[1]
-				filterpro.Dir.Add(direct)
-				match, err := alog.Filter(content)
-				if err != nil {
-					return nil, err
-				}
-				if match {
-					if dirt {
-						if flag {
-							if match && strings.Contains(alog.URL, directory) {
-								filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.FileSize))
-								filterpro.URLErr.Add(alog.URL)
-							}
-						} else {
-							if match {
-								filterpro.Flux.AddNum(direct, alog.ToInt64(alog.FileSize))
-								filterpro.URLErr.Add(direct)
-							}
+		}
+	} else {
+		for _, alog := range apro.LogInfo {
+			filterpro.Add(alog)
+			// if strings.Contains(alog.Host, host) {
+			filterpro.URL.Add(alog.URL)
+			direct := strings.Split(alog.URL, "/")[1]
+			filterpro.Dir.Add(direct)
+			match, err := alog.Filter(content)
+			if err != nil {
+				return nil, err
+			}
+			if match {
+				if dirt {
+					if flag {
+						if match && strings.Contains(alog.URL, directory) {
+							filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
+							filterpro.URLErr.Add(alog.URL)
 						}
 					} else {
 						if match {
-							filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.FileSize))
-							filterpro.URLErr.Add(alog.URL)
+							filterpro.Flux.AddNum(direct, alog.ToInt64(alog.SendDataSize))
+							filterpro.URLErr.Add(direct)
 						}
+					}
+				} else {
+					if match {
+						filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
+						filterpro.URLErr.Add(alog.URL)
 					}
 				}
 			}
 		}
-
 	}
 
 	out := filterpro.String(dirt, format, outline, sort)
