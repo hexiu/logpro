@@ -191,6 +191,11 @@ func (ufile *UpstreamFile) JudgeContains(starttime, warntime time.Time) {
 		ufile.Some = true
 		return
 	}
+	if ufile.FirstLine.UpstreamTimeToTime().Sub(starttime) > 0 && warntime.Sub(ufile.LastLine.UpstreamTimeToTime()) > 0 {
+		ufile.All = false
+		ufile.Some = true
+		return
+	}
 	return
 }
 
@@ -230,15 +235,20 @@ func (upro *UpstreamPro) AddLog(ulog *UpstreamLog, host, directory string) bool 
 			if ulog.UpstreamTimeToTime().Sub(upro.StartWarn) >= 0 && ulog.UpstreamTimeToTime().Sub(upro.EndWarn) <= 0 {
 				upro.LogInfo = append(upro.LogInfo, ulog)
 				upro.AllNum++
+				return true
 			}
 		}
 	} else {
 		if ulog.UpstreamTimeToTime().Sub(upro.StartWarn) >= 0 && ulog.UpstreamTimeToTime().Sub(upro.EndWarn) <= 0 {
 			upro.LogInfo = append(upro.LogInfo, ulog)
 			upro.AllNum++
+			return true
 		}
 	}
-	return true
+	if upro.AllNum < 10 {
+		return true
+	}
+	return false
 }
 
 // NewUpstreamPro 创建一个新的访问日志处理器
@@ -291,7 +301,7 @@ func (upro *UpstreamPro) ProLogFile(files []string, host string) {
 	}
 	wg := sync.WaitGroup{}
 	DeBugPrintln("filternum:", len(files), len(upro.LogFile))
-	zonesize := 50 * logger.MB
+	zonesize := 10 * logger.MB
 	for _, uf := range upro.LogFile {
 		var n int64
 		DeBugPrintln(uf.Filename)
@@ -372,6 +382,8 @@ type FilterUPro struct {
 	URLErr        *SomeInfo
 	ErrCode       *SomeInfo
 	UpstreamTimer *SomeInfo
+	UpFlux        *SomeInfo
+	AllFlux       int64
 	AllNum        int64
 	MaxSize       int64
 	Lock          *sync.Mutex
@@ -385,6 +397,7 @@ func NewFilterUPro() *FilterUPro {
 		URLErr:        NewSomeInfo(),
 		ErrCode:       NewSomeInfo(),
 		UpstreamTimer: NewSomeInfo(),
+		UpFlux:        NewSomeInfo(),
 		AllNum:        0,
 		MaxSize:       0,
 		Lock:          &sync.Mutex{},
@@ -405,6 +418,8 @@ func (fp *FilterUPro) Count() int {
 }
 
 func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string) (out string) {
+	var jsonapi map[string][][]string
+	jsonapi = make(map[string][][]string)
 	var outdata [][]string
 	var list []string
 	if dirt {
@@ -416,13 +431,14 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 		}
 		for _, url := range list[:length] {
 			if jsondata {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
+		jsonapi["dir"] = outdata
 	} else {
 		fp.URLErr.Sort()
 		list = fp.URLErr.CodeList
@@ -433,14 +449,17 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 		for _, url := range list[:length] {
 			DeBugPrintln(url)
 			if jsondata {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
+		jsonapi["uri"] = outdata
 	}
+	// 恢复outdata 为空
+	outdata = [][]string{}
 
 	out += "\n"
 
@@ -459,7 +478,9 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 			out += fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
 		}
 	}
+	jsonapi["uip"] = outdata
 	out += "\n"
+	outdata = [][]string{}
 
 	list = fp.ErrCode.CodeList
 	length = len(fp.ErrCode.CodeList)
@@ -476,8 +497,28 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 			out += fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
 		}
 	}
+	jsonapi["errcode"] = outdata
+	out += "\n"
+	outdata = [][]string{}
+	list = fp.UpFlux.CodeList
+	length = len(fp.UpFlux.CodeList)
+	if length > outline {
+		length = outline
+	}
+	for _, url := range list[:length] {
+		DeBugPrintln(url)
+		if jsondata {
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.UpFlux.CodeDict[url])), fp.AllFlux, FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
+		}
+	}
+	out += "\n"
+
 	if jsondata {
-		jsonstr, _ := json.Marshal(outdata)
+		jsonstr, _ := json.Marshal(jsonapi)
 		return string(jsonstr)
 	}
 	return out
@@ -504,48 +545,46 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 	for _, ulog := range upro.LogInfo {
 		filterpro.Add(ulog)
 		if host == "" {
+			filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
 			filterpro.Host.Add(ulog.OriginalDomain)
 			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 
 			DeBugPrintln("code:", ulog.ErrCode)
 			filterpro.ErrCode.Add(ulog.ErrCode)
 			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-			filterpro.URLErr.Add(ulog.OriginalDomain)
+			filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToInt64(ulog.BackContentSize))
 
 		} else {
-			if strings.Contains(ulog.OriginalDomain, host) {
-				filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
-				filterpro.Host.Add(ulog.OriginalDomain)
-				direct := strings.Split(ulog.URL, "/")[1]
+			// if strings.Contains(ulog.OriginalDomain, host) {
+			filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
 
-				if dirt {
-					// flag 标识 是否包含uri
-					if flag {
-						if strings.Contains(ulog.URL, directory) {
-							filterpro.URLErr.Add(ulog.URL)
-							filterpro.ErrCode.Add(ulog.ErrCode)
-							filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+			filterpro.Host.Add(ulog.OriginalDomain)
+			direct := strings.Split(ulog.URL, "/")[1]
 
-						}
-					} else {
-						if strings.Contains(ulog.URL, directory) {
-							filterpro.URLErr.Add(direct)
-							filterpro.ErrCode.Add(ulog.ErrCode)
-							filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-						}
-					}
-				} else {
-					if strings.Contains(ulog.BackCode, content) {
+			if dirt {
+				// flag 标识 是否包含uri
+				if flag {
+					if strings.Contains(ulog.URL, directory) {
+						filterpro.URLErr.Add(ulog.URL)
 						filterpro.ErrCode.Add(ulog.ErrCode)
 						filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-						filterpro.URLErr.Add(ulog.URL)
+						filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
 					}
-				}
+				} else {
 
-				// // match 说明返回码正常是0
-				// if !match {
-				// 	DeBugPrintln("code:", ulog.ErrCode)
-				// 	filterpro.URLErr.Add(ulog.URL)
+					filterpro.URLErr.Add(direct)
+					filterpro.ErrCode.Add(ulog.ErrCode)
+					filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+					filterpro.UpFlux.AddNum(direct, ulog.ToInt64(ulog.BackContentSize))
+
+				}
+			} else {
+				// if strings.Contains(ulog.BackCode, content) {
+				filterpro.ErrCode.Add(ulog.ErrCode)
+				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+				filterpro.URLErr.Add(ulog.URL)
+				filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
 				// }
 			}
 		}
