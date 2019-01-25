@@ -419,7 +419,7 @@ func (fp *FilterUPro) Count() int {
 
 func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string) (out string) {
 	var jsonapi map[string][][]string
-	jsonapi = make(map[string][][]string)
+	jsonapi = make(map[string][][]string, 0)
 	var outdata [][]string
 	var list []string
 	if dirt {
@@ -471,7 +471,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if jsondata {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+			outstr := fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
@@ -490,7 +490,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if jsondata {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+			outstr := fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
@@ -508,7 +508,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if jsondata {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.UpFlux.CodeDict[url])), fp.AllFlux, FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2))
+			outstr := fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
@@ -516,6 +516,7 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 		}
 	}
 	out += "\n"
+	jsonapi["host"] = outdata
 
 	if jsondata {
 		jsonstr, _ := json.Marshal(jsonapi)
