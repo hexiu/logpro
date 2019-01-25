@@ -561,6 +561,9 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 
 			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 			filterpro.Host.Add(ulog.OriginalDomain)
+			if ulog.URL == "/" {
+				continue
+			}
 			direct := strings.Split(ulog.URL, "/")[1]
 
 			if dirt {
