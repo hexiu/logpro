@@ -664,6 +664,9 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 			filterpro.Add(alog)
 			// if strings.Contains(alog.Host, host) {
 			filterpro.URL.Add(alog.URL)
+			if alog.URL == "/" {
+				continue
+			}
 			direct := strings.Split(alog.URL, "/")[1]
 			filterpro.Dir.Add(direct)
 			match, err := alog.Filter(content)
