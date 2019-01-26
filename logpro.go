@@ -161,8 +161,10 @@ func commUAction(c *cli.Context) {
 	apro := prolog.NewUpstreamPro(stime, etime, datasize)
 	apro.ProLogFile(files, c.String("domain"))
 	apro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
-	fmt.Println("参数是: ")
-	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
+	if !c.Bool("format") {
+		fmt.Println("参数是: ")
+		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
+	}
 }
 
 func commAction(c *cli.Context) {
@@ -210,8 +212,10 @@ func commAction(c *cli.Context) {
 	apro := prolog.NewAccessPro(stime, etime, datasize)
 	apro.ProLogFile(files, c.String("domain"))
 	apro.Filter(retcode, c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
-	fmt.Println("参数是: ")
-	fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", retcode, c.String("domain"))
+	if !c.Bool("format") {
+		fmt.Println("参数是: ")
+		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", retcode, c.String("domain"))
+	}
 }
 
 func initAccessFlag(app *cli.Command) {
