@@ -128,7 +128,7 @@ func (alog *AccessLog) SomeInfo(someinfo []int) (info string) {
 // Filter 过率信息
 // content 过滤内容，支持正则，host 匹配的域名，dirt 是不是目录划分业务的标识符默认为false
 func (alog *AccessLog) Filter(content string) (match bool, err error) {
-	match, err = regexp.Match(content, alog.Line)
+	match, err = regexp.Match(content, []byte(alog.BackCode))
 	return match, err
 }
 
