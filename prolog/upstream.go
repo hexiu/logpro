@@ -405,10 +405,8 @@ func NewFilterUPro() *FilterUPro {
 }
 
 // Add 添加数据
-func (fp *FilterUPro) Add(ulog *UpstreamLog) {
-	fp.Lock.Lock()
-	defer fp.Lock.Unlock()
-	fp.LogInfo = append(fp.LogInfo, ulog)
+func (fp *FilterUPro) Add() {
+
 	fp.AllNum++
 }
 
@@ -526,6 +524,116 @@ func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string)
 
 }
 
+// FString ...
+func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
+	var jsonapi map[string][][]string
+	jsonapi = make(map[string][][]string, 0)
+	var outdata [][]string
+	var list []string
+	if dirt {
+		fp.Host.Sort()
+		list = fp.URLErr.CodeList
+		length := int64(len(fp.URLErr.CodeList))
+		if length > ufi.OutLine {
+			length = ufi.OutLine
+		}
+		for _, url := range list[:length] {
+			if ufi.Format {
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+				outdata = append(outdata, outlist)
+			} else {
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+			}
+		}
+		jsonapi["dir"] = outdata
+	} else {
+		fp.URLErr.Sort()
+		list = fp.URLErr.CodeList
+		length := len(fp.URLErr.CodeList)
+		if length > int(ufi.OutLine) {
+			length = int(ufi.OutLine)
+		}
+		for _, url := range list[:length] {
+			DeBugPrintln(url)
+			if ufi.Format {
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+				outdata = append(outdata, outlist)
+			} else {
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+			}
+		}
+		jsonapi["uri"] = outdata
+	}
+	// 恢复outdata 为空
+	outdata = [][]string{}
+
+	out += "\n"
+
+	list = fp.UpstreamIP.CodeList
+	length := len(fp.UpstreamIP.CodeList)
+	if length > int(ufi.OutLine) {
+		length = int(ufi.OutLine)
+	}
+	for _, url := range list[:length] {
+		DeBugPrintln(url)
+		if ufi.Format {
+			outstr := fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["uip"] = outdata
+	out += "\n"
+	outdata = [][]string{}
+
+	list = fp.ErrCode.CodeList
+	length = len(fp.ErrCode.CodeList)
+	if length > int(ufi.OutLine) {
+		length = int(ufi.OutLine)
+	}
+	for _, url := range list[:length] {
+		DeBugPrintln(url)
+		if ufi.Format {
+			outstr := fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["errcode"] = outdata
+	out += "\n"
+	outdata = [][]string{}
+	list = fp.UpFlux.CodeList
+	length = len(fp.UpFlux.CodeList)
+	if length > int(ufi.OutLine) {
+		length = int(ufi.OutLine)
+	}
+	for _, url := range list[:length] {
+		DeBugPrintln(url)
+		if ufi.Format {
+			outstr := fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
+		}
+	}
+	out += "\n"
+	jsonapi["host"] = outdata
+
+	if ufi.Format {
+		jsonstr, _ := json.Marshal(jsonapi)
+		return string(jsonstr)
+	}
+	return out
+
+}
+
 // Filter 过率信息
 // content 过滤内容，支持正则，host 匹配的域名，dirt 是不是目录划分业务的标识符默认为false
 func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline int, sort string) (filterpro *FilterUPro, err error) {
@@ -544,7 +652,7 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 	}
 
 	for _, ulog := range upro.LogInfo {
-		filterpro.Add(ulog)
+		filterpro.Add()
 		if host == "" {
 			filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
 			filterpro.Host.Add(ulog.OriginalDomain)
@@ -598,4 +706,219 @@ func (upro *UpstreamPro) Filter(content, host string, dirt, format bool, outline
 	out := filterpro.String(dirt, format, outline, sort)
 	fmt.Println(out)
 	return
+}
+
+// FProLogFile F处理日志文件
+func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro *FilterUPro) {
+	var flag bool
+	if ufi.Directory != "" {
+		flag = true
+	}
+	DeBugPrintln("flag:", flag, ufi.Host, ufi.Directory)
+	upro.LogInfo = make([]*UpstreamLog, 0)
+	upro.LogFile = make([]*UpstreamFile, 0)
+
+	for _, file := range files {
+		ufile := NewUpstreamFile(file)
+		ok := ufile.Init(upro.StartWarn, upro.EndWarn)
+		if !ok {
+			ufile.File.Close()
+			continue
+		}
+		ufile.JudgeContains(upro.StartWarn, upro.EndWarn)
+		DeBugPrintln(ufile.All, ufile.Some)
+		DeBugPrintln(ufile.FirstLine)
+		DeBugPrintln(ufile.LastLine)
+		DeBugPrintln(ufile.Filename, ufile.FirstLine.UpstreamTimeToTime(), ufile.LastLine.UpstreamTimeToTime())
+		if ufile.All || ufile.Some {
+			upro.LogFile = append(upro.LogFile, ufile)
+			continue
+		} else {
+			ufile.Close()
+		}
+	}
+	wg := sync.WaitGroup{}
+	DeBugPrintln("filternum:", len(files), len(upro.LogFile))
+	zonesize := ufi.ZoneSize
+	for _, uf := range upro.LogFile {
+		var n int64
+		DeBugPrintln(uf.Filename)
+		var lastdata = make([]byte, 2048)
+		for n < uf.Stat.Size() {
+			var linedata = make([]byte, zonesize)
+			nu, err := uf.File.ReadAt(linedata, n)
+
+			DeBugPrintln(nu, n, err)
+			if err != nil && err != io.EOF {
+				break
+			}
+			wg.Add(1)
+			linedata = append(lastdata, linedata...)
+			go fproUpstreamLogFile(uf.All, uf.Some, linedata, ufi, filterpro, &wg)
+			if int64(nu) != n {
+				lastdata = linedata[zonesize-2048 : zonesize]
+			}
+			n += int64(nu)
+		}
+		wg.Wait()
+
+		if filterpro.AllNum >= ufi.MaxLine {
+			break
+		}
+	}
+	fmt.Println(filterpro)
+	out := filterpro.FString(flag, ufi)
+	fmt.Println(out, "info")
+}
+
+func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro *FilterUPro, wg *sync.WaitGroup) {
+	defer wg.Done()
+	DeBugPrintln("prologfile:", all, some)
+	if some {
+		peach := ufi.StartWarn.String()[:16]
+		DeBugPrintln(ufi.StartWarn, "\n\n\n", peach, "\n\n\n\n")
+		// time.Sleep(100 * time.Second)
+		match, _ := regexp.Compile(peach)
+		index := match.FindAllIndex(linedata, 1)
+		var indexlog int
+		if len(index) == 0 {
+			peach := ufi.StartWarn.String()[:16]
+			DeBugPrintln(ufi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
+			// time.Sleep(100 * time.Second)
+			match, _ := regexp.Compile(peach)
+			index1 := match.FindAllIndex(linedata, 1)
+			if len(index1) != 0 {
+				indexlog = 0
+			}
+		} else {
+			indexlog = index[0][0] - int(5*logger.KB)
+			if indexlog < 0 {
+				indexlog = 0
+			}
+			DeBugPrintln(index[:1], len(linedata), indexlog)
+		}
+		DeBugPrintln(len(linedata), indexlog)
+		linedata = (linedata)[indexlog:]
+	}
+	linebuf := bytes.NewBuffer(linedata)
+	lineread := bufio.NewReader(linebuf)
+	_, err := fReadULog(lineread, ufi, fpro)
+	if err == OutTimeZone {
+		return
+	}
+}
+
+// fReadULog 加载log信息
+func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (fp *FilterUPro, err error) {
+	flag := false
+	for {
+		line, _, err := lineread.ReadLine()
+		linestr := string(line)
+		if err == io.EOF {
+			DeBugPrintln(err)
+			break
+		}
+		if ufi.FilterString != "" {
+			match, _ := regexp.MatchString(ufi.FilterString, linestr)
+			// DeBugPrintln(match, err)
+			if match {
+				ulog := NewUpstreamLog(linestr)
+				if ulog == nil {
+					continue
+				}
+				if !flag {
+					if len(ulog.UpstreamTimeThreadNum) > 2048 {
+						ulog.UpstreamTimeThreadNum = ulog.UpstreamTimeThreadNum[2048:]
+					}
+					flag = true
+					DeBugPrintln(ulog)
+					DeBugPrintln(ulog.String())
+					DeBugPrintln("list:", strings.Split(ulog.String(), "\001"), len(strings.Split(ulog.String(), "\001")))
+					DeBugPrintln(len(ulog.UpstreamTimeThreadNum), ulog.UpstreamTimeThreadNum, len(ulog.UpstreamTimeThreadNum))
+					if ulog.UpstreamTimeToTime().Sub(ufi.EndWarn) > 0 {
+						return filterpro, OutTimeZone
+					}
+				}
+				var goon bool
+				fp, goon, err = ulogFilter(ulog, ufi, filterpro)
+				if goon {
+					continue
+				} else {
+					break
+				}
+			} else {
+				DeBugPrintln("no match!")
+				continue
+			}
+		} else {
+			ulog := NewUpstreamLog(linestr)
+			if ulog == nil {
+				continue
+			}
+			var goon bool
+			fp, goon, err = ulogFilter(ulog, ufi, filterpro)
+			if goon {
+				continue
+			} else {
+				break
+			}
+		}
+
+	}
+	return filterpro, err
+}
+
+func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro) (fp *FilterUPro, goon bool, err error) {
+
+	if ufi.Host == "" {
+		filterpro.Add()
+		filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+		filterpro.Host.Add(ulog.OriginalDomain)
+		filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+
+		DeBugPrintln("code:", ulog.ErrCode)
+		filterpro.ErrCode.Add(ulog.ErrCode)
+		filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+		filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToInt64(ulog.BackContentSize))
+
+	} else {
+		filterpro.Add()
+
+		// if strings.Contains(ulog.OriginalDomain, host) {
+		filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+
+		filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+		filterpro.Host.Add(ulog.OriginalDomain)
+		if ulog.URL == "/" {
+			return
+		}
+		direct := strings.Split(ulog.URL, "/")[1]
+
+		if ufi.DirectoryFlag {
+			// flag 标识 是否包含uri
+			if ufi.DirectoryFlag {
+				if strings.Contains(ulog.URL, ufi.Directory) {
+					filterpro.URLErr.Add(ulog.URL)
+					filterpro.ErrCode.Add(ulog.ErrCode)
+					filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+					filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
+				}
+			} else {
+
+				filterpro.URLErr.Add(direct)
+				filterpro.ErrCode.Add(ulog.ErrCode)
+				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+				filterpro.UpFlux.AddNum(direct, ulog.ToInt64(ulog.BackContentSize))
+
+			}
+		} else {
+			// if strings.Contains(ulog.BackCode, content) {
+			filterpro.ErrCode.Add(ulog.ErrCode)
+			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+			filterpro.URLErr.Add(ulog.URL)
+			filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
+			// }
+		}
+	}
+	return filterpro, true, err
 }

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -57,7 +58,7 @@ type AccessLog struct {
 // NewAccessLog 创建一个新的访问日志结构
 func NewAccessLog(line string) *AccessLog {
 	linelist := strings.Split(line, "\001")
-	if len(linelist) < 31 {
+	if len(linelist) != 39 {
 		return nil
 	}
 	return &AccessLog{
@@ -279,6 +280,7 @@ func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 	}
 	afile.FirstLine = NewAccessLog(ReadFileFirstLine(afile.Filename))
 	afile.LastLine = NewAccessLog(ReadFileLastLine(afile.Filename))
+	// DeBugPrintln(afile.FirstLine, afile.LastLine)
 	if afile.FirstLine == nil || afile.LastLine == nil {
 		return false
 	}
@@ -431,7 +433,7 @@ func (apro *AccessPro) ProLogFile(files []string, host string) {
 }
 
 // FProLogFile F处理日志文件
-func (apro *AccessPro) FProLogFile(files []string, afi *AFilterInfo, filterpro *FilterPro) {
+func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *FilterPro) {
 	var flag bool
 	if afi.Directory != "" {
 		flag = true
@@ -465,20 +467,26 @@ func (apro *AccessPro) FProLogFile(files []string, afi *AFilterInfo, filterpro *
 	for _, af := range apro.LogFile {
 		var n int64
 		DeBugPrintln(af.Filename)
+		var lastdata = make([]byte, 2048)
 		for n < af.Stat.Size() {
 			var linedata = make([]byte, zonesize)
 			nu, err := af.File.ReadAt(linedata, n)
+
 			DeBugPrintln(nu, n, err)
 			if err != nil && err != io.EOF {
 				break
 			}
 			wg.Add(1)
+			linedata = append(lastdata, linedata...)
 			go fproLogFile(af.All, af.Some, linedata, afi, filterpro, &wg)
+			if int64(nu) != n {
+				lastdata = linedata[zonesize-2048 : zonesize]
+			}
 			n += int64(nu)
 		}
 		wg.Wait()
 
-		if apro.AllNum >= afi.MaxLine {
+		if filterpro.AllNum >= afi.MaxLine {
 			break
 		}
 	}
@@ -513,8 +521,8 @@ func proLogFile(all, some bool, linedata []byte, apro *AccessPro, host, director
 	ReadLog(lineread, apro, host, directory)
 }
 
-// AFilterInfo 访问日志过滤信息
-type AFilterInfo struct {
+// FilterInfo 访问日志过滤信息
+type FilterInfo struct {
 	Host          string
 	Directory     string
 	DirectoryFlag bool
@@ -527,21 +535,25 @@ type AFilterInfo struct {
 	Format        bool
 	Sort          string
 	MaxLine       int64
+	StartWarn     time.Time
+	EndWarn       time.Time
 	ZoneSize      int64 // 读取信息的块大小
 }
 
-// NewAFilterInfo 日志过滤信息
-func NewAFilterInfo() *AFilterInfo {
-	return &AFilterInfo{
+// NewFilterInfo 日志过滤信息
+func NewFilterInfo() *FilterInfo {
+	return &FilterInfo{
 		ZoneSize: 10 * logger.MB,
 		OutLine:  10,
 		MaxLine:  100000,
 	}
 }
 
-// fReadLog 加载log信息
-func fReadLog(lineread *bufio.Reader, afi *AFilterInfo, filterpro *FilterPro) (fp *FilterPro, err error) {
+var OutTimeZone = errors.New("Out Time Zone")
 
+// fReadLog 加载log信息
+func fReadLog(lineread *bufio.Reader, afi *FilterInfo, filterpro *FilterPro) (fp *FilterPro, err error) {
+	flag := false
 	for {
 		line, _, err := lineread.ReadLine()
 		linestr := string(line)
@@ -549,7 +561,6 @@ func fReadLog(lineread *bufio.Reader, afi *AFilterInfo, filterpro *FilterPro) (f
 			DeBugPrintln(err)
 			break
 		}
-
 		if afi.FilterString != "" {
 			match, _ := regexp.MatchString(afi.FilterString, linestr)
 			// DeBugPrintln(match, err)
@@ -557,6 +568,19 @@ func fReadLog(lineread *bufio.Reader, afi *AFilterInfo, filterpro *FilterPro) (f
 				alog := NewAccessLog(linestr)
 				if alog == nil {
 					continue
+				}
+				if !flag {
+					if len(alog.AccessTimeThreadNum) > 2048 {
+						alog.AccessTimeThreadNum = alog.AccessTimeThreadNum[2048:]
+					}
+					flag = true
+					DeBugPrintln(alog)
+					DeBugPrintln(alog.String())
+					DeBugPrintln("list:", strings.Split(alog.String(), "\001"), len(strings.Split(alog.String(), "\001")))
+					DeBugPrintln(len(alog.AccessTimeThreadNum), alog.AccessTimeThreadNum, len(alog.AccessTimeThreadNum))
+					if alog.accessTimeToTime().Sub(afi.EndWarn) > 0 {
+						return filterpro, OutTimeZone
+					}
 				}
 				var goon bool
 				fp, goon, err = logFilter(alog, afi, filterpro)
@@ -587,7 +611,7 @@ func fReadLog(lineread *bufio.Reader, afi *AFilterInfo, filterpro *FilterPro) (f
 	return filterpro, err
 }
 
-func logFilter(alog *AccessLog, afi *AFilterInfo, filterpro *FilterPro) (fp *FilterPro, goon bool, err error) {
+func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro) (fp *FilterPro, goon bool, err error) {
 	if afi.Host == "" {
 		filterpro.Lock.Lock()
 		defer filterpro.Lock.Unlock()
@@ -812,7 +836,7 @@ func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) 
 }
 
 // FString 新版本输出
-func (fp *FilterPro) FString(dirt bool, afi *AFilterInfo) (out string) {
+func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	var jsonapi = make(map[string][][]string, 0)
 	var outdata [][]string
 	var list []string
@@ -950,18 +974,27 @@ func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline i
 	return
 }
 
-func fproLogFile(all, some bool, linedata []byte, afi *AFilterInfo, fpro *FilterPro, wg *sync.WaitGroup) {
+func fproLogFile(all, some bool, linedata []byte, afi *FilterInfo, fpro *FilterPro, wg *sync.WaitGroup) {
 	defer wg.Done()
 	DeBugPrintln("prologfile:", all, some)
 	if some {
-		peach := afi.Host
+		peach := afi.StartWarn.String()[:16]
+		DeBugPrintln(afi.StartWarn, "\n\n\n", peach, "\n\n\n\n")
+		// time.Sleep(100 * time.Second)
 		match, _ := regexp.Compile(peach)
 		index := match.FindAllIndex(linedata, 1)
 		var indexlog int
 		if len(index) == 0 {
-			indexlog = 0
+			peach := afi.StartWarn.String()[:16]
+			DeBugPrintln(afi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
+			// time.Sleep(100 * time.Second)
+			match, _ := regexp.Compile(peach)
+			index1 := match.FindAllIndex(linedata, 1)
+			if len(index1) != 0 {
+				indexlog = 0
+			}
 		} else {
-			indexlog = index[0][0] - int(10*logger.KB)
+			indexlog = index[0][0] - int(5*logger.KB)
 			if indexlog < 0 {
 				indexlog = 0
 			}
@@ -972,5 +1005,8 @@ func fproLogFile(all, some bool, linedata []byte, afi *AFilterInfo, fpro *Filter
 	}
 	linebuf := bytes.NewBuffer(linedata)
 	lineread := bufio.NewReader(linebuf)
-	fReadLog(lineread, afi, fpro)
+	_, err := fReadLog(lineread, afi, fpro)
+	if err == OutTimeZone {
+		return
+	}
 }

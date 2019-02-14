@@ -160,9 +160,40 @@ func commUAction(c *cli.Context) {
 			etime = timepro.StringToTime(c.String("etime"))
 		}
 	}
-	apro := prolog.NewUpstreamPro(stime, etime, datasize)
-	apro.ProLogFile(files, c.String("domain"))
-	apro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
+	upro := prolog.NewUpstreamPro(stime, etime, datasize)
+
+	ufi := prolog.NewFilterInfo()
+	host := c.String("domain")
+	ufi.StartWarn = stime
+	ufi.EndWarn = etime
+	if strings.Contains(host, "/") {
+		peach := "/"
+		if match, _ := regexp.Match(peach, []byte(host)); match {
+			match, _ := regexp.Compile(peach)
+			index := match.FindAllIndex([]byte(host), 1)
+			prolog.DeBugPrintln("#####index:", index)
+			ufi.Directory = host[index[0][0]:]
+		}
+		ufi.Host = strings.Split(host, "/")[0]
+	} else {
+		ufi.Host = host
+	}
+	ufi.DirectoryFlag = c.Bool("dirt")
+	// ufi.Code = retcode
+	if c.String("sort") == "flux" {
+		ufi.FluxSort = true
+	} else {
+		ufi.MatchNumSort = true
+	}
+	ufi.OutLine = int64(c.Uint("outline"))
+	ufi.MaxLine = int64(size)
+	ufi.Format = c.Bool("format")
+	ufi.FilterString = "2[0-9][0-9]"
+	filterupro := prolog.NewFilterUPro()
+	upro.FProLogFile(files, ufi, filterupro)
+
+	// upro.ProLogFile(files, c.String("domain"))
+	// upro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
 	if !c.Bool("format") {
 		fmt.Println("参数是: ")
 		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
@@ -211,9 +242,12 @@ func commAction(c *cli.Context) {
 			etime = timepro.StringToTime(c.String("etime"))
 		}
 	}
+
 	apro := prolog.NewAccessPro(stime, etime, datasize)
-	afi := prolog.NewAFilterInfo()
+	afi := prolog.NewFilterInfo()
 	host := c.String("domain")
+	afi.StartWarn = stime
+	afi.EndWarn = etime
 	if strings.Contains(host, "/") {
 		peach := "/"
 		if match, _ := regexp.Match(peach, []byte(host)); match {
