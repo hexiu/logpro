@@ -6,6 +6,8 @@ import (
 	"logpro/prolog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hexiu/utils/timepro"
@@ -210,8 +212,36 @@ func commAction(c *cli.Context) {
 		}
 	}
 	apro := prolog.NewAccessPro(stime, etime, datasize)
-	apro.ProLogFile(files, c.String("domain"))
-	apro.Filter(retcode, c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
+	afi := prolog.NewAFilterInfo()
+	host := c.String("domain")
+	if strings.Contains(host, "/") {
+		peach := "/"
+		if match, _ := regexp.Match(peach, []byte(host)); match {
+			match, _ := regexp.Compile(peach)
+			index := match.FindAllIndex([]byte(host), 1)
+			prolog.DeBugPrintln("#####index:", index)
+			afi.Directory = host[index[0][0]:]
+		}
+		afi.Host = strings.Split(host, "/")[0]
+	} else {
+		afi.Host = host
+	}
+	afi.DirectoryFlag = c.Bool("dirt")
+	afi.Code = retcode
+	if c.String("sort") == "flux" {
+		afi.FluxSort = true
+	} else {
+		afi.MatchNumSort = true
+	}
+	afi.OutLine = int64(c.Uint("outline"))
+	afi.MaxLine = int64(size)
+	afi.Format = c.Bool("format")
+	afi.FilterString = "2[0-9][0-9]"
+	filterpro := prolog.NewFilterPro()
+	apro.FProLogFile(files, afi, filterpro)
+
+	// apro.ProLogFile(files, c.String("domain"))
+	// apro.Filter(retcode, c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
 	if !c.Bool("format") {
 		fmt.Println("参数是: ")
 		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", retcode, c.String("domain"))
