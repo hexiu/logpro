@@ -192,12 +192,82 @@ func commUAction(c *cli.Context) {
 	filterupro := prolog.NewFilterUPro()
 	upro.FProLogFile(files, ufi, filterupro)
 
-	// upro.ProLogFile(files, c.String("domain"))
-	// upro.Filter(c.String("retcode"), c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
 	if !c.Bool("format") {
 		fmt.Println("参数是: ")
 		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", c.String("retcode"), c.String("domain"))
 	}
+}
+
+func initAccessFlag(app *cli.Command) {
+	logpath := cli.StringFlag{
+		Name:  "path,p",
+		Usage: "/path/to/directory",
+		Value: "/usr/local/nws/log",
+	}
+	logdomain := cli.StringFlag{
+		Name:  "domain,d",
+		Usage: "doamin , eg : www.qq.com.",
+		Value: "",
+	}
+	logcode := cli.StringFlag{
+		Name:  "retcode,r",
+		Usage: "retcode, eg : 200,302,404.",
+		Value: "0",
+	}
+	logdirt := cli.BoolFlag{
+		Name:  "dirt,l",
+		Usage: "dirt : true,false ,default is false.",
+	}
+	logstime := cli.StringFlag{
+		Name:  "stime,s",
+		Usage: "stime, eg : 2019-01-07 13:14:35",
+	}
+	logetime := cli.StringFlag{
+		Name:  "etime,e",
+		Usage: "etime, eg : 2019-01-07 13:14:35",
+		Value: time.Now().String()[:16],
+	}
+	timegap := cli.Uint64Flag{
+		Name:  "timegap,t",
+		Usage: "timegap , eg: 10 , unit is second",
+		Value: 900,
+	}
+	logsize := cli.Uint64Flag{
+		Name:  "datasize,z",
+		Usage: "datasize is get log size, eg: 1000. default is 1000.",
+		Value: 1000,
+	}
+	logdebug := cli.BoolFlag{
+		Name:  "debug",
+		Usage: "debug code",
+	}
+	logformat := cli.BoolFlag{
+		Name:  "format,f",
+		Usage: "format is true/false, result is json or text.",
+	}
+	logout := cli.UintFlag{
+		Name:  "outline,ol",
+		Value: 10,
+		Usage: "outline, out lines.",
+	}
+	logsort := cli.StringFlag{
+		Name:  "sort",
+		Value: "matchnum",
+		Usage: "Enter Sort method : flux or matchnum.",
+	}
+	app.Flags = append(app.Flags, logpath)
+	app.Flags = append(app.Flags, logdomain)
+	app.Flags = append(app.Flags, logcode)
+	app.Flags = append(app.Flags, logdirt)
+	app.Flags = append(app.Flags, logstime)
+	app.Flags = append(app.Flags, logetime)
+	app.Flags = append(app.Flags, timegap)
+	app.Flags = append(app.Flags, logsize)
+	app.Flags = append(app.Flags, logdebug)
+	app.Flags = append(app.Flags, logformat)
+	app.Flags = append(app.Flags, logout)
+	app.Flags = append(app.Flags, logsort)
+	return
 }
 
 func commAction(c *cli.Context) {
@@ -274,82 +344,8 @@ func commAction(c *cli.Context) {
 	filterpro := prolog.NewFilterPro()
 	apro.FProLogFile(files, afi, filterpro)
 
-	// apro.ProLogFile(files, c.String("domain"))
-	// apro.Filter(retcode, c.String("domain"), c.Bool("dirt"), c.Bool("format"), int(c.Uint("outline")), c.String("sort"))
 	if !c.Bool("format") {
 		fmt.Println("参数是: ")
 		fmt.Println("处理时间区间: ", stime.String()[:16], "~", etime.String()[:16], "错误码: ", retcode, c.String("domain"))
 	}
-}
-
-func initAccessFlag(app *cli.Command) {
-	logpath := cli.StringFlag{
-		Name:  "path,p",
-		Usage: "/path/to/directory",
-		Value: "/usr/local/nws/log",
-	}
-	logdomain := cli.StringFlag{
-		Name:  "domain,d",
-		Usage: "doamin , eg : www.qq.com.",
-		Value: "",
-	}
-	logcode := cli.StringFlag{
-		Name:  "retcode,r",
-		Usage: "retcode, eg : 200,302,404.",
-		Value: "0",
-	}
-	logdirt := cli.BoolFlag{
-		Name:  "dirt,l",
-		Usage: "dirt : true,false ,default is false.",
-	}
-	logstime := cli.StringFlag{
-		Name:  "stime,s",
-		Usage: "stime, eg : 2019-01-07 13:14:35",
-	}
-	logetime := cli.StringFlag{
-		Name:  "etime,e",
-		Usage: "etime, eg : 2019-01-07 13:14:35",
-		Value: time.Now().String()[:16],
-	}
-	timegap := cli.Uint64Flag{
-		Name:  "timegap,t",
-		Usage: "timegap , eg: 10 , unit is second",
-		Value: 900,
-	}
-	logsize := cli.Uint64Flag{
-		Name:  "datasize,z",
-		Usage: "datasize is get log size, eg: 1000. default is 1000.",
-		Value: 1000,
-	}
-	logdebug := cli.BoolFlag{
-		Name:  "debug",
-		Usage: "debug code",
-	}
-	logformat := cli.BoolFlag{
-		Name:  "format,f",
-		Usage: "format is true/false, result is json or text.",
-	}
-	logout := cli.UintFlag{
-		Name:  "outline,ol",
-		Value: 10,
-		Usage: "outline, out lines.",
-	}
-	logsort := cli.StringFlag{
-		Name:  "sort",
-		Value: "matchnum",
-		Usage: "Enter Sort method : flux or matchnum.",
-	}
-	app.Flags = append(app.Flags, logpath)
-	app.Flags = append(app.Flags, logdomain)
-	app.Flags = append(app.Flags, logcode)
-	app.Flags = append(app.Flags, logdirt)
-	app.Flags = append(app.Flags, logstime)
-	app.Flags = append(app.Flags, logetime)
-	app.Flags = append(app.Flags, timegap)
-	app.Flags = append(app.Flags, logsize)
-	app.Flags = append(app.Flags, logdebug)
-	app.Flags = append(app.Flags, logformat)
-	app.Flags = append(app.Flags, logout)
-	app.Flags = append(app.Flags, logsort)
-	return
 }
