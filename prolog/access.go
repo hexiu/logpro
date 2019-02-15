@@ -370,68 +370,6 @@ func NewAccessPro(stime, etime time.Time, datasize int64) *AccessPro {
 	}
 }
 
-// ProLogFile 处理日志文件
-func (apro *AccessPro) ProLogFile(files []string, host string) {
-	flag := strings.Contains(host, "/")
-	var directory string
-	if flag {
-		peach := "/"
-		if match, _ := regexp.Match(peach, []byte(host)); match {
-			match, _ := regexp.Compile(peach)
-			index := match.FindAllIndex([]byte(host), 1)
-			DeBugPrintln("#####index:", index)
-			directory = host[index[0][0]:]
-		}
-		host = strings.Split(host, "/")[0]
-	}
-	DeBugPrintln("flag:", flag, host, directory)
-	apro.LogInfo = make([]*AccessLog, 0)
-	apro.LogFile = make([]*AccessFile, 0)
-
-	for _, file := range files {
-		afile := NewAccessFile(file)
-		ok := afile.Init(apro.StartWarn, apro.EndWarn)
-		if !ok {
-			afile.File.Close()
-			continue
-		}
-		afile.JudgeContains(apro.StartWarn, apro.EndWarn)
-		DeBugPrintln(afile.All, afile.Some)
-		DeBugPrintln(afile.FirstLine)
-		DeBugPrintln(afile.LastLine)
-		DeBugPrintln(afile.Filename, afile.FirstLine.accessTimeToTime(), afile.LastLine.accessTimeToTime())
-		if afile.All || afile.Some {
-			apro.LogFile = append(apro.LogFile, afile)
-			continue
-		} else {
-			afile.Close()
-		}
-	}
-	wg := sync.WaitGroup{}
-	DeBugPrintln("filternum:", len(files), len(apro.LogFile))
-	zonesize := 20 * logger.MB
-	for _, af := range apro.LogFile {
-		var n int64
-		DeBugPrintln(af.Filename)
-		for n < af.Stat.Size() {
-			var linedata = make([]byte, zonesize)
-			nu, err := af.File.ReadAt(linedata, n)
-			DeBugPrintln(nu, n, err)
-			if err != nil && err != io.EOF {
-				break
-			}
-			wg.Add(1)
-			go proLogFile(af.All, af.Some, linedata, apro, host, directory, &wg)
-			n += int64(nu)
-		}
-		wg.Wait()
-
-		if apro.AllNum >= apro.MaxSize {
-			break
-		}
-	}
-}
-
 // FProLogFile F处理日志文件
 func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *FilterPro) {
 	var flag bool
@@ -494,31 +432,6 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 	out := filterpro.FString(flag, afi)
 	fmt.Println(out, "info")
 
-}
-
-func proLogFile(all, some bool, linedata []byte, apro *AccessPro, host, directory string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	DeBugPrintln("prologfile:", all, some)
-	if some {
-		peach := host
-		match, _ := regexp.Compile(peach)
-		index := match.FindAllIndex(linedata, 1)
-		var indexlog int
-		if len(index) == 0 {
-			indexlog = 0
-		} else {
-			indexlog = index[0][0] - int(10*logger.KB)
-			if indexlog < 0 {
-				indexlog = 0
-			}
-			DeBugPrintln(index[:1], len(linedata), indexlog)
-		}
-		DeBugPrintln(len(linedata), indexlog)
-		linedata = (linedata)[indexlog:]
-	}
-	linebuf := bytes.NewBuffer(linedata)
-	lineread := bufio.NewReader(linebuf)
-	ReadLog(lineread, apro, host, directory)
 }
 
 // FilterInfo 访问日志过滤信息
@@ -668,31 +581,6 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro) (fp *Filt
 		}
 	}
 	return filterpro, true, err
-}
-
-// ReadLog 加载log信息
-func ReadLog(lineread *bufio.Reader, apro *AccessPro, host, directory string) bool {
-
-	for {
-		line, _, err := lineread.ReadLine()
-		linestr := string(line)
-		if err == io.EOF {
-			DeBugPrintln("AllNum:", apro.AllNum)
-			DeBugPrintln(err)
-			break
-		}
-		alog := NewAccessLog(linestr)
-		if alog == nil {
-			continue
-		}
-		if apro.AddLog(alog, host, directory) {
-			continue
-		} else {
-			DeBugPrintln(alog, string(line), directory)
-			return false
-		}
-	}
-	return true
 }
 
 // SomeInfo 一些 信息
@@ -899,79 +787,6 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 func FloatToString(f float64, long int) string {
 	str := fmt.Sprintf("%."+strconv.Itoa(long)+"f", f*100.0)
 	return strings.Split(str, "!")[0]
-}
-
-// Filter 过率信息
-// content 过滤内容，支持正则，host 匹配的域名，dirt 是不是目录划分业务的标识符默认为false
-func (apro *AccessPro) Filter(content, host string, dirt, format bool, outline int, sort string) (filterpro *FilterPro, err error) {
-	filterpro = NewFilterPro()
-	flag := strings.Contains(host, "/")
-	var directory string
-	if flag {
-		peach := "/"
-		if match, _ := regexp.Match(peach, []byte(host)); match {
-			match, _ := regexp.Compile(peach)
-			index := match.FindAllIndex([]byte(host), 1)
-			directory = host[index[0][0]:]
-		}
-		host = strings.Split(host, "/")[0]
-	}
-
-	if host == "" {
-		for _, alog := range apro.LogInfo {
-			filterpro.Add()
-			filterpro.URL.Add(alog.Host)
-			match, err := alog.Filter(content)
-			if err != nil {
-				return nil, err
-			}
-			if match {
-				if match {
-					filterpro.URLErr.Add(alog.Host)
-					filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
-				}
-			}
-		}
-	} else {
-		for _, alog := range apro.LogInfo {
-			filterpro.Add()
-			// if strings.Contains(alog.Host, host) {
-			filterpro.URL.Add(alog.URL)
-			if alog.URL == "/" {
-				continue
-			}
-			direct := strings.Split(alog.URL, "/")[1]
-			filterpro.Dir.Add(direct)
-			match, err := alog.Filter(content)
-			if err != nil {
-				return nil, err
-			}
-			if match {
-				if dirt {
-					if flag {
-						if match && strings.Contains(alog.URL, directory) {
-							filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
-							filterpro.URLErr.Add(alog.URL)
-						}
-					} else {
-						if match {
-							filterpro.Flux.AddNum(direct, alog.ToInt64(alog.SendDataSize))
-							filterpro.URLErr.Add(direct)
-						}
-					}
-				} else {
-					if match {
-						filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
-						filterpro.URLErr.Add(alog.URL)
-					}
-				}
-			}
-		}
-	}
-
-	out := filterpro.String(dirt, format, outline, sort)
-	fmt.Println(out)
-	return
 }
 
 func fproLogFile(all, some bool, linedata []byte, afi *FilterInfo, fpro *FilterPro, wg *sync.WaitGroup) {
