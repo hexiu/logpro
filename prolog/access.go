@@ -428,9 +428,8 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 			break
 		}
 	}
-	fmt.Println(filterpro)
 	out := filterpro.FString(flag, afi)
-	fmt.Println(out, "info")
+	fmt.Println(out)
 
 }
 
@@ -456,7 +455,7 @@ type FilterInfo struct {
 // NewFilterInfo 日志过滤信息
 func NewFilterInfo() *FilterInfo {
 	return &FilterInfo{
-		ZoneSize: 10 * logger.MB,
+		ZoneSize: 20 * logger.MB,
 		OutLine:  10,
 		MaxLine:  100000,
 	}
@@ -528,55 +527,52 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro) (fp *Filt
 	if afi.Host == "" {
 		filterpro.Lock.Lock()
 		defer filterpro.Lock.Unlock()
-		filterpro.Add()
-
+		filterpro.AllNum++
 		filterpro.URL.Add(alog.Host)
 		var match bool
-		if afi.Code == alog.BackCode {
-			match = true
-		}
+		match, err = regexp.MatchString(afi.Code, alog.BackCode)
 		if err != nil {
 			return filterpro, true, err
 		}
 		if match {
+			filterpro.ErrNum++
 			filterpro.URLErr.Add(alog.Host)
 			filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
 		}
 	} else {
 		filterpro.Lock.Lock()
 		defer filterpro.Lock.Unlock()
-		filterpro.Add()
-
+		filterpro.AllNum++
 		filterpro.URL.Add(alog.URL)
 		if alog.URL == "/" {
 			return filterpro, true, err
 		}
 		var match bool
-		if strings.Contains(alog.BackCode, afi.Code) {
-			match = true
-		}
+		match, err = regexp.MatchString(afi.Code, alog.BackCode)
 		if err != nil {
 			return filterpro, false, err
 		}
 		if match {
+			filterpro.ErrNum++
 			if afi.DirectoryFlag {
 				afi.Directory = strings.Split(alog.URL, "/")[1]
 				filterpro.Dir.Add(afi.Directory)
 
 				if afi.FluxSort {
-
 					filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
 					filterpro.URLErr.Add(alog.URL)
-
+					filterpro.UA.Add(alog.UserAgent)
 				} else {
 
 					filterpro.Flux.AddNum(afi.Directory, alog.ToInt64(alog.SendDataSize))
 					filterpro.URLErr.Add(afi.Directory)
+					filterpro.UA.Add(alog.UserAgent)
 
 				}
 			} else {
 				filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
 				filterpro.URLErr.Add(alog.URL)
+				filterpro.UA.Add(alog.UserAgent)
 			}
 		}
 	}
@@ -636,7 +632,9 @@ type FilterPro struct {
 	Dir     *SomeInfo
 	URLErr  *SomeInfo
 	Flux    *SomeInfo
+	UA      *SomeInfo
 	AllNum  int64
+	ErrNum  int64
 	MaxSize int64
 	Lock    *sync.Mutex
 }
@@ -648,6 +646,7 @@ func NewFilterPro() *FilterPro {
 		Dir:    NewSomeInfo(),
 		URLErr: NewSomeInfo(),
 		Flux:   NewSomeInfo(),
+		UA:     NewSomeInfo(),
 		AllNum: 0,
 		Lock:   &sync.Mutex{},
 	}
@@ -655,7 +654,6 @@ func NewFilterPro() *FilterPro {
 
 // Add 添加数据
 func (fp *FilterPro) Add() {
-
 	fp.AllNum++
 }
 
@@ -774,6 +772,25 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		}
 		jsonapi["uri"] = outdata
 	}
+
+	outdata = [][]string{}
+	length := int64(len(fp.UA.CodeList))
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	fp.UA.Sort()
+	list = fp.UA.CodeList[:length]
+	out += "UA:\n"
+	for _, ua := range list[:length] {
+		if afi.Format {
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", ua, strconv.Itoa(int(fp.UA.CodeDict[ua])), strconv.Itoa(fp.Count()), fp.UA.CodeDict[ua], FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(ua, "\t", fp.UA.CodeDict[ua], "\t", strconv.Itoa(fp.Count()), "\t", fp.UA.CodeDict[ua], "\t", FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["ua"] = outdata
 
 	if afi.Format {
 		jsonstr, _ := json.Marshal(jsonapi)

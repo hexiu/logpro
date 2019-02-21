@@ -273,6 +273,7 @@ type FilterUPro struct {
 	UpFlux        *SomeInfo
 	AllFlux       int64
 	AllNum        int64
+	ErrNum        int64
 	MaxSize       int64
 	Lock          *sync.Mutex
 }
@@ -300,7 +301,7 @@ func (fp *FilterUPro) Add() {
 
 // Count 返回日志数量
 func (fp *FilterUPro) Count() int {
-	return int(fp.AllNum)
+	return int(fp.ErrNum)
 }
 
 func (fp *FilterUPro) String(dirt bool, jsondata bool, outline int, sort string) (out string) {
@@ -504,11 +505,11 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if ufi.Format {
-			outstr := fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
+			outstr := fmt.Sprintln(url, "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
-			out += fmt.Sprintln(url, "\t", fp.UpFlux.CodeDict[url], "M\t", fp.AllFlux, "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
+			out += fmt.Sprintln(url, "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
 		}
 	}
 	out += "\n"
@@ -682,56 +683,66 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 }
 
 func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro) (fp *FilterUPro, goon bool, err error) {
+	filterpro.Lock.Lock()
+	defer filterpro.Lock.Unlock()
+	match, err := regexp.MatchString(ufi.Code, ulog.ErrCode)
+	if !match {
+		DeBugPrintln(match, err, ulog.ErrCode, ulog.BackContentSize)
+	}
+	if err != nil {
+		return fp, true, err
+	}
 
 	if ufi.Host == "" {
-		filterpro.Add()
-		filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
-		filterpro.Host.Add(ulog.OriginalDomain)
-		filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+		filterpro.AllNum++
+		if !match {
+			filterpro.ErrNum++
+			filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+			filterpro.Host.Add(ulog.OriginalDomain)
+			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 
-		DeBugPrintln("code:", ulog.ErrCode)
-		filterpro.ErrCode.Add(ulog.ErrCode)
-		filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-		filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToInt64(ulog.BackContentSize))
+			DeBugPrintln("code:", ulog.ErrCode)
+			filterpro.ErrCode.Add(ulog.ErrCode)
+			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
+			filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToInt64(ulog.BackContentSize))
+		}
 
 	} else {
-		filterpro.Add()
-
+		filterpro.AllNum++
 		// if strings.Contains(ulog.OriginalDomain, host) {
-		filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
-
-		filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
-		filterpro.Host.Add(ulog.OriginalDomain)
 		if ulog.URL == "/" {
-			return
+			return fp, true, err
 		}
 		direct := strings.Split(ulog.URL, "/")[1]
 
 		if ufi.DirectoryFlag {
-			// flag 标识 是否包含uri
-			if ufi.DirectoryFlag {
-				if strings.Contains(ulog.URL, ufi.Directory) {
+			if strings.Contains(ulog.URL, ufi.Directory) {
+				if !match {
+					filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+
+					filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+					filterpro.Host.Add(ulog.OriginalDomain)
+					filterpro.ErrNum++
 					filterpro.URLErr.Add(ulog.URL)
 					filterpro.ErrCode.Add(ulog.ErrCode)
 					filterpro.UpstreamIP.Add(ulog.UpstreamIP)
 					filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
 				}
-			} else {
+			}
+		} else {
+			if !match {
+				filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
 
+				filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
+				filterpro.Host.Add(ulog.OriginalDomain)
+				filterpro.ErrNum++
 				filterpro.URLErr.Add(direct)
 				filterpro.ErrCode.Add(ulog.ErrCode)
 				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
 				filterpro.UpFlux.AddNum(direct, ulog.ToInt64(ulog.BackContentSize))
-
 			}
-		} else {
-			// if strings.Contains(ulog.BackCode, content) {
-			filterpro.ErrCode.Add(ulog.ErrCode)
-			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-			filterpro.URLErr.Add(ulog.URL)
-			filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
-			// }
 		}
+
 	}
 	return filterpro, true, err
 }

@@ -65,11 +65,6 @@ func initUpstreamFlag(app *cli.Command) {
 		Usage: "doamin , eg : www.qq.com.",
 		Value: "",
 	}
-	logcode := cli.StringFlag{
-		Name:  "retcode,r",
-		Usage: "retcode, eg : 200,302,404.",
-		Value: "404",
-	}
 	logdirt := cli.BoolFlag{
 		Name:  "dirt,l",
 		Usage: "dirt : true,false ,default is false.",
@@ -106,9 +101,14 @@ func initUpstreamFlag(app *cli.Command) {
 		Value: 10,
 		Usage: "outline, out lines.",
 	}
+	logfilter := cli.StringFlag{
+		Name:  "filter,F",
+		Value: "",
+		Usage: "Enter Sort method : flux or matchnum.",
+	}
+	app.Flags = append(app.Flags, logfilter)
 	app.Flags = append(app.Flags, logpath)
 	app.Flags = append(app.Flags, logdomain)
-	app.Flags = append(app.Flags, logcode)
 	app.Flags = append(app.Flags, logdirt)
 	app.Flags = append(app.Flags, logstime)
 	app.Flags = append(app.Flags, logetime)
@@ -166,6 +166,12 @@ func commUAction(c *cli.Context) {
 	host := c.String("domain")
 	ufi.StartWarn = stime
 	ufi.EndWarn = etime
+	if strings.Contains(path, "logs") {
+		ufi.Code = "[0-9]:0:0:[0-9]"
+	} else {
+		ufi.Code = "0"
+	}
+
 	if strings.Contains(host, "/") {
 		peach := "/"
 		if match, _ := regexp.Match(peach, []byte(host)); match {
@@ -188,7 +194,7 @@ func commUAction(c *cli.Context) {
 	ufi.OutLine = int64(c.Uint("outline"))
 	ufi.MaxLine = int64(size)
 	ufi.Format = c.Bool("format")
-	ufi.FilterString = "2[0-9][0-9]"
+	ufi.FilterString = c.String("filter")
 	filterupro := prolog.NewFilterUPro()
 	upro.FProLogFile(files, ufi, filterupro)
 
@@ -212,7 +218,7 @@ func initAccessFlag(app *cli.Command) {
 	logcode := cli.StringFlag{
 		Name:  "retcode,r",
 		Usage: "retcode, eg : 200,302,404.",
-		Value: "0",
+		Value: "",
 	}
 	logdirt := cli.BoolFlag{
 		Name:  "dirt,l",
@@ -255,6 +261,12 @@ func initAccessFlag(app *cli.Command) {
 		Value: "matchnum",
 		Usage: "Enter Sort method : flux or matchnum.",
 	}
+	logfilter := cli.StringFlag{
+		Name:  "filter,F",
+		Value: "",
+		Usage: "Enter Sort method : flux or matchnum.",
+	}
+	app.Flags = append(app.Flags, logfilter)
 	app.Flags = append(app.Flags, logpath)
 	app.Flags = append(app.Flags, logdomain)
 	app.Flags = append(app.Flags, logcode)
@@ -340,7 +352,7 @@ func commAction(c *cli.Context) {
 	afi.OutLine = int64(c.Uint("outline"))
 	afi.MaxLine = int64(size)
 	afi.Format = c.Bool("format")
-	afi.FilterString = "2[0-9][0-9]"
+	afi.FilterString = c.String("filter")
 	filterpro := prolog.NewFilterPro()
 	apro.FProLogFile(files, afi, filterpro)
 
