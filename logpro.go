@@ -65,6 +65,11 @@ func initUpstreamFlag(app *cli.Command) {
 		Usage: "doamin , eg : www.qq.com.",
 		Value: "",
 	}
+	logcode := cli.StringFlag{
+		Name:  "retcode,r",
+		Usage: "retcode, eg : 200,302,404.",
+		Value: "404",
+	}
 	logdirt := cli.BoolFlag{
 		Name:  "dirt,l",
 		Usage: "dirt : true,false ,default is false.",
@@ -109,6 +114,7 @@ func initUpstreamFlag(app *cli.Command) {
 	app.Flags = append(app.Flags, logfilter)
 	app.Flags = append(app.Flags, logpath)
 	app.Flags = append(app.Flags, logdomain)
+	app.Flags = append(app.Flags, logcode)
 	app.Flags = append(app.Flags, logdirt)
 	app.Flags = append(app.Flags, logstime)
 	app.Flags = append(app.Flags, logetime)
@@ -166,10 +172,14 @@ func commUAction(c *cli.Context) {
 	host := c.String("domain")
 	ufi.StartWarn = stime
 	ufi.EndWarn = etime
-	if strings.Contains(path, "logs") {
-		ufi.Code = "[0-9]:0:0:[0-9]"
+	if c.String("retcode") == "" {
+		if strings.Contains(path, "logs") {
+			ufi.Code = "[0-9]:0:0:[0-9]"
+		} else {
+			ufi.Code = "0"
+		}
 	} else {
-		ufi.Code = "0"
+		ufi.Code = c.String("retcode")
 	}
 
 	if strings.Contains(host, "/") {
