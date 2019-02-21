@@ -68,7 +68,7 @@ func initUpstreamFlag(app *cli.Command) {
 	logcode := cli.StringFlag{
 		Name:  "retcode,r",
 		Usage: "retcode, eg : 200,302,404.",
-		Value: "404",
+		Value: "",
 	}
 	logdirt := cli.BoolFlag{
 		Name:  "dirt,l",
