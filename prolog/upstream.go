@@ -47,7 +47,8 @@ type UpstreamLog struct {
 // NewUpstreamLog 创建一个新的访问日志结构
 func NewUpstreamLog(line string) *UpstreamLog {
 	linelist := strings.Split(line, "\001")
-	if len(linelist) < 22 {
+	if len(linelist) != 22 {
+		DeBugPrintln(len(linelist), len(line), line, []byte(line))
 		return nil
 	}
 	return &UpstreamLog{
@@ -176,9 +177,14 @@ func (ufile *UpstreamFile) JudgeContains(starttime, warntime time.Time) {
 		ufile.Some = false
 		return
 	}
-	if starttime.Sub(ufile.FirstLine.UpstreamTimeToTime()) > 0 && ufile.LastLine.UpstreamTimeToTime().Sub(warntime) > 0 {
+	if starttime.Sub(ufile.FirstLine.UpstreamTimeToTime()) < 0 && ufile.LastLine.UpstreamTimeToTime().Sub(warntime) < 0 {
 		ufile.All = true
 		ufile.Some = false
+		return
+	}
+	if starttime.Sub(ufile.FirstLine.UpstreamTimeToTime()) > 0 && ufile.LastLine.UpstreamTimeToTime().Sub(warntime) > 0 {
+		ufile.All = false
+		ufile.Some = true
 		return
 	}
 	if ufile.FirstLine.UpstreamTimeToTime().Sub(starttime) > 0 && warntime.Sub(ufile.FirstLine.UpstreamTimeToTime()) > 0 {
@@ -428,11 +434,11 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 		for _, url := range list[:length] {
 			if ufi.Format {
-				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
 		jsonapi["dir"] = outdata
@@ -446,11 +452,11 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		for _, url := range list[:length] {
 			DeBugPrintln(url)
 			if ufi.Format {
-				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", fp.UpFlux.CodeDict[url], "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
 		jsonapi["uri"] = outdata
@@ -540,7 +546,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 			continue
 		}
 		ufile.JudgeContains(upro.StartWarn, upro.EndWarn)
-		DeBugPrintln(ufile.All, ufile.Some)
+		DeBugPrintln("ufile:", ufile.All, ufile.Some)
 		DeBugPrintln(ufile.FirstLine)
 		DeBugPrintln(ufile.LastLine)
 		DeBugPrintln(ufile.Filename, ufile.FirstLine.UpstreamTimeToTime(), ufile.LastLine.UpstreamTimeToTime())
@@ -567,11 +573,12 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 				break
 			}
 			wg.Add(1)
-			linedata = append(lastdata, linedata...)
-			go fproUpstreamLogFile(uf.All, uf.Some, linedata, ufi, filterpro, &wg)
-			if int64(nu) != n {
-				lastdata = linedata[zonesize-2048 : zonesize]
+			if lastdata[0] != 0 {
+				linedata = append(lastdata, linedata...)
 			}
+			go fproUpstreamLogFile(uf.All, uf.Some, linedata, ufi, filterpro, &wg)
+			lastdata = linedata[zonesize-2048 : zonesize]
+
 			n += int64(nu)
 		}
 		wg.Wait()
@@ -580,9 +587,8 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 			break
 		}
 	}
-	fmt.Println(filterpro)
 	out := filterpro.FString(flag, ufi)
-	fmt.Println(out, "info")
+	fmt.Println(out)
 }
 
 func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro *FilterUPro, wg *sync.WaitGroup) {
@@ -590,13 +596,13 @@ func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro 
 	DeBugPrintln("prologfile:", all, some)
 	if some {
 		peach := ufi.StartWarn.String()[:16]
-		DeBugPrintln(ufi.StartWarn, "\n\n\n", peach, "\n\n\n\n")
+		DeBugPrintln(ufi.StartWarn, "\n\n\n,peach:", peach, "\n\n\n\n")
 		// time.Sleep(100 * time.Second)
 		match, _ := regexp.Compile(peach)
 		index := match.FindAllIndex(linedata, 1)
 		var indexlog int
 		if len(index) == 0 {
-			peach := ufi.StartWarn.String()[:16]
+			peach := ufi.EndWarn.String()[:16]
 			DeBugPrintln(ufi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
 			// time.Sleep(100 * time.Second)
 			match, _ := regexp.Compile(peach)
@@ -605,11 +611,11 @@ func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro 
 				indexlog = 0
 			}
 		} else {
-			indexlog = index[0][0] - int(5*logger.KB)
+			indexlog = index[0][0] - int(2*logger.KB)
 			if indexlog < 0 {
 				indexlog = 0
 			}
-			DeBugPrintln(index[:1], len(linedata), indexlog)
+			DeBugPrintln("findindex:", index[:1], len(linedata), indexlog)
 		}
 		DeBugPrintln(len(linedata), indexlog)
 		linedata = (linedata)[indexlog:]
@@ -625,13 +631,18 @@ func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro 
 // fReadULog 加载log信息
 func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (fp *FilterUPro, err error) {
 	flag := false
+	var i int
 	for {
+		i++
 		line, _, err := lineread.ReadLine()
-		linestr := string(line)
 		if err == io.EOF {
 			DeBugPrintln(err)
 			break
 		}
+		if len(line) == 0 {
+			continue
+		}
+		linestr := string(line)
 		if ufi.FilterString != "" {
 			match, _ := regexp.MatchString(ufi.FilterString, linestr)
 			// DeBugPrintln(match, err)
@@ -640,6 +651,9 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 				if ulog == nil {
 					continue
 				}
+
+				DeBugPrintln(i, "newulog")
+
 				if !flag {
 					if len(ulog.UpstreamTimeThreadNum) > 2048 {
 						ulog.UpstreamTimeThreadNum = ulog.UpstreamTimeThreadNum[2048:]
@@ -654,7 +668,7 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 					}
 				}
 				var goon bool
-				fp, goon, err = ulogFilter(ulog, ufi, filterpro)
+				fp, goon, err = ulogFilter(ulog, ufi, filterpro, i)
 				if goon {
 					continue
 				} else {
@@ -669,8 +683,10 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 			if ulog == nil {
 				continue
 			}
+
+			DeBugPrintln(i, "newulog")
 			var goon bool
-			fp, goon, err = ulogFilter(ulog, ufi, filterpro)
+			fp, goon, err = ulogFilter(ulog, ufi, filterpro, i)
 			if goon {
 				continue
 			} else {
@@ -682,9 +698,24 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 	return filterpro, err
 }
 
-func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro) (fp *FilterUPro, goon bool, err error) {
+func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int) (fp *FilterUPro, goon bool, err error) {
 	filterpro.Lock.Lock()
 	defer filterpro.Lock.Unlock()
+	defer func() {
+		if _, ok := recover().(error); ok {
+			return
+		}
+	}()
+	if i%10 == 0 {
+		if ulog.UpstreamTimeToTime().Sub(ufi.StartWarn) > -120*time.Second && ulog.UpstreamTimeToTime().Sub(ufi.EndWarn) < 60*time.Second {
+
+		} else {
+			DeBugPrintln("timeis:", ulog.UpstreamTimeToTime())
+			return fp, false, err
+
+		}
+	}
+
 	match, err := regexp.MatchString(ufi.Code, ulog.ErrCode)
 	if !match {
 		DeBugPrintln(match, err, ulog.ErrCode, ulog.BackContentSize)
@@ -708,6 +739,10 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro) (fp *
 		}
 
 	} else {
+		if !strings.Contains(ulog.OriginalDomain, ufi.Host) {
+			return fp, true, err
+		}
+
 		filterpro.AllNum++
 		// if strings.Contains(ulog.OriginalDomain, host) {
 		if ulog.URL == "/" {
