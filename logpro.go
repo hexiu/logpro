@@ -176,7 +176,7 @@ func commUAction(c *cli.Context) {
 		if strings.Contains(path, "logs") {
 			ufi.Code = "[0-9]:0:0:[0-9]"
 		} else {
-			ufi.Code = "0"
+			ufi.Code = "[0,-1]"
 		}
 	} else {
 		ufi.Code = c.String("retcode")
