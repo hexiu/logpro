@@ -570,6 +570,7 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 			filterpro.URLErr.Add(alog.Host)
 			filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
 			filterpro.UA.Add(alog.UserAgent)
+			filterpro.Refer.Add(alog.Referer)
 		}
 	} else {
 		if !strings.Contains(alog.Host, afi.Host) {
@@ -596,15 +597,18 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 					filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
 					filterpro.URLErr.Add(alog.URL)
 					filterpro.UA.Add(alog.UserAgent)
+					filterpro.Refer.Add(alog.Referer)
 				} else {
 					filterpro.Flux.AddNum(afi.Directory, alog.ToInt64(alog.SendDataSize))
 					filterpro.URLErr.Add(afi.Directory)
 					filterpro.UA.Add(alog.UserAgent)
+					filterpro.Refer.Add(alog.Referer)
 				}
 			} else {
 				filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
 				filterpro.URLErr.Add(alog.URL)
 				filterpro.UA.Add(alog.UserAgent)
+				filterpro.Refer.Add(alog.Referer)
 			}
 		}
 	}
@@ -663,6 +667,7 @@ type FilterPro struct {
 	URL     *SomeInfo
 	Dir     *SomeInfo
 	URLErr  *SomeInfo
+	Refer   *SomeInfo
 	Flux    *SomeInfo
 	UA      *SomeInfo
 	AllNum  int64
@@ -679,6 +684,7 @@ func NewFilterPro() *FilterPro {
 		URLErr: NewSomeInfo(),
 		Flux:   NewSomeInfo(),
 		UA:     NewSomeInfo(),
+		Refer:  NewSomeInfo(),
 		AllNum: 0,
 		Lock:   &sync.Mutex{},
 	}
@@ -822,6 +828,25 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		}
 	}
 	jsonapi["ua"] = outdata
+
+	outdata = [][]string{}
+	length = int64(len(fp.UA.CodeList))
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	fp.Refer.Sort()
+	list = fp.Refer.CodeList[:length]
+	out += "Refer:\n"
+	for _, refer := range list[:length] {
+		if afi.Format {
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.Refer.CodeDict[refer])), strconv.Itoa(fp.Count()), fp.Refer.CodeDict[refer], FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(refer, "\t", fp.Refer.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", fp.Refer.CodeDict[refer], "\t", FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["refer"] = outdata
 
 	if afi.Format {
 		jsonstr, _ := json.Marshal(jsonapi)
