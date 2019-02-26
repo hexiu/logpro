@@ -111,6 +111,11 @@ func initUpstreamFlag(app *cli.Command) {
 		Value: "",
 		Usage: "Enter Sort method : flux or matchnum.",
 	}
+	logquit := cli.BoolFlag{
+		Name:  "q,files",
+		Usage: "print contains log's filelist.",
+	}
+	app.Flags = append(app.Flags, logquit)
 	app.Flags = append(app.Flags, logfilter)
 	app.Flags = append(app.Flags, logpath)
 	app.Flags = append(app.Flags, logdomain)
@@ -205,6 +210,8 @@ func commUAction(c *cli.Context) {
 	ufi.MaxLine = int64(size)
 	ufi.Format = c.Bool("format")
 	ufi.FilterString = c.String("filter")
+	ufi.LogQuit = c.Bool("files")
+	ufi.LogPath = c.String("path")
 	filterupro := prolog.NewFilterUPro()
 	upro.FProLogFile(files, ufi, filterupro)
 
@@ -276,6 +283,12 @@ func initAccessFlag(app *cli.Command) {
 		Value: "",
 		Usage: "Enter Sort method : flux or matchnum.",
 	}
+	logquit := cli.BoolFlag{
+		Name:  "q,files",
+		Usage: "print contains log's filelist.",
+	}
+	app.Flags = append(app.Flags, logquit)
+
 	app.Flags = append(app.Flags, logfilter)
 	app.Flags = append(app.Flags, logpath)
 	app.Flags = append(app.Flags, logdomain)
@@ -363,6 +376,8 @@ func commAction(c *cli.Context) {
 	afi.MaxLine = int64(size)
 	afi.Format = c.Bool("format")
 	afi.FilterString = c.String("filter")
+	afi.LogQuit = c.Bool("files")
+	afi.LogPath = c.String("path")
 	filterpro := prolog.NewFilterPro()
 	apro.FProLogFile(files, afi, filterpro)
 

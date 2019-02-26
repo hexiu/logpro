@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"standAlone/utils/logger"
 	"strconv"
@@ -406,6 +407,15 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 	}
 	wg := sync.WaitGroup{}
 	DeBugPrintln("filternum:", len(files), len(apro.LogFile))
+	if afi.LogQuit {
+		fmt.Println("Contains Log's Files:")
+		for _, af := range apro.LogFile {
+			fmt.Println(filepath.Join(afi.LogPath, af.Filename))
+			af.Close()
+		}
+		return
+	}
+
 	zonesize := afi.ZoneSize
 	for _, af := range apro.LogFile {
 		var n int64
@@ -441,6 +451,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 type FilterInfo struct {
 	Host          string
 	Directory     string
+	LogPath       string
 	DirectoryFlag bool
 	FluxSort      bool
 	MatchNumSort  bool
@@ -449,6 +460,7 @@ type FilterInfo struct {
 	Code          string
 	FilterString  string
 	Format        bool
+	LogQuit       bool
 	Sort          string
 	MaxLine       int64
 	StartWarn     time.Time

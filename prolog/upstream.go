@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"standAlone/utils/logger"
 	"strconv"
@@ -558,6 +559,14 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 		}
 	}
 	wg := sync.WaitGroup{}
+	if ufi.LogQuit {
+		fmt.Println("Contains Log's Files:")
+		for _, uf := range upro.LogFile {
+			fmt.Println(filepath.Join(ufi.LogPath, uf.Filename))
+			uf.Close()
+		}
+		return
+	}
 	DeBugPrintln("filternum:", len(files), len(upro.LogFile))
 	zonesize := ufi.ZoneSize
 	for _, uf := range upro.LogFile {
