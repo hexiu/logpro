@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"standAlone/utils/logger"
 	"strconv"
@@ -562,7 +561,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 	if ufi.LogQuit {
 		fmt.Println("Contains Log's Files:")
 		for _, uf := range upro.LogFile {
-			fmt.Println(filepath.Join(ufi.LogPath, uf.Filename))
+			fmt.Println(uf.Filename)
 			uf.Close()
 		}
 		return

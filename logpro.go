@@ -211,7 +211,6 @@ func commUAction(c *cli.Context) {
 	ufi.Format = c.Bool("format")
 	ufi.FilterString = c.String("filter")
 	ufi.LogQuit = c.Bool("files")
-	ufi.LogPath = c.String("path")
 	filterupro := prolog.NewFilterUPro()
 	upro.FProLogFile(files, ufi, filterupro)
 
@@ -377,7 +376,6 @@ func commAction(c *cli.Context) {
 	afi.Format = c.Bool("format")
 	afi.FilterString = c.String("filter")
 	afi.LogQuit = c.Bool("files")
-	afi.LogPath = c.String("path")
 	filterpro := prolog.NewFilterPro()
 	apro.FProLogFile(files, afi, filterpro)
 

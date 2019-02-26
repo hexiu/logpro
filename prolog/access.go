@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"standAlone/utils/logger"
 	"strconv"
@@ -410,7 +409,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 	if afi.LogQuit {
 		fmt.Println("Contains Log's Files:")
 		for _, af := range apro.LogFile {
-			fmt.Println(filepath.Join(afi.LogPath, af.Filename))
+			fmt.Println(af.Filename)
 			af.Close()
 		}
 		return
@@ -451,7 +450,6 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 type FilterInfo struct {
 	Host          string
 	Directory     string
-	LogPath       string
 	DirectoryFlag bool
 	FluxSort      bool
 	MatchNumSort  bool
