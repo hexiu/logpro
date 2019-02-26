@@ -419,6 +419,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 	for _, af := range apro.LogFile {
 		var n int64
 		DeBugPrintln(af.Filename)
+
 		var lastdata = make([]byte, 2048)
 		for n < af.Stat.Size() {
 			var linedata = make([]byte, zonesize)
@@ -548,7 +549,7 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 		}
 	}()
 	if i%10 == 0 {
-		if alog.accessTimeToTime().Sub(afi.StartWarn) > -120*time.Second && alog.accessTimeToTime().Sub(afi.EndWarn) < 60*time.Second {
+		if alog.accessTimeToTime().Sub(afi.StartWarn) > -59*time.Second && alog.accessTimeToTime().Sub(afi.EndWarn) < 59*time.Second {
 		} else {
 			DeBugPrintln("timeis:", alog.accessTimeToTime())
 			return fp, false, err
@@ -830,7 +831,7 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	jsonapi["ua"] = outdata
 
 	outdata = [][]string{}
-	length = int64(len(fp.UA.CodeList))
+	length = int64(len(fp.Refer.CodeList))
 	if length > afi.OutLine {
 		length = afi.OutLine
 	}
