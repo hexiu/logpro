@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"standAlone/utils/logger"
 	"strings"
 	"time"
 
@@ -90,8 +91,8 @@ func initUpstreamFlag(app *cli.Command) {
 	}
 	logsize := cli.Uint64Flag{
 		Name:  "datasize,z",
-		Usage: "datasize is get log size, eg: 1000. default is 1000.",
-		Value: 1000,
+		Usage: "datasize is get log size, eg: 100. default is 100.",
+		Value: 100,
 	}
 	logdebug := cli.BoolFlag{
 		Name:  "debug",
@@ -211,6 +212,7 @@ func commUAction(c *cli.Context) {
 	ufi.Format = c.Bool("format")
 	ufi.FilterString = c.String("filter")
 	ufi.LogQuit = c.Bool("files")
+	ufi.ZoneSize = logger.MB * c.Int64("datasize")
 	filterupro := prolog.NewFilterUPro()
 	upro.FProLogFile(files, ufi, filterupro)
 
@@ -256,8 +258,8 @@ func initAccessFlag(app *cli.Command) {
 	}
 	logsize := cli.Uint64Flag{
 		Name:  "datasize,z",
-		Usage: "datasize is get log size, eg: 1000. default is 1000.",
-		Value: 1000,
+		Usage: "datasize is get log size, eg: 100. default is 100.",
+		Value: 100,
 	}
 	logdebug := cli.BoolFlag{
 		Name:  "debug",
@@ -376,6 +378,7 @@ func commAction(c *cli.Context) {
 	afi.Format = c.Bool("format")
 	afi.FilterString = c.String("filter")
 	afi.LogQuit = c.Bool("files")
+	afi.ZoneSize = logger.MB * c.Int64("datasize")
 	filterpro := prolog.NewFilterPro()
 	apro.FProLogFile(files, afi, filterpro)
 
