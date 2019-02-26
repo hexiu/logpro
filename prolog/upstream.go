@@ -771,7 +771,7 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 				filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 				filterpro.Host.Add(ulog.OriginalDomain)
 				filterpro.ErrNum++
-				filterpro.URLErr.Add(direct)
+				filterpro.URLErr.Add(ulog.URL)
 				filterpro.ErrCode.Add(ulog.ErrCode)
 				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
 				filterpro.UpFlux.AddNum(direct, ulog.ToInt64(ulog.BackContentSize))
