@@ -715,7 +715,7 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 		}
 	}()
 	if i%10 == 0 {
-		if ulog.UpstreamTimeToTime().Sub(ufi.StartWarn) > -120*time.Second && ulog.UpstreamTimeToTime().Sub(ufi.EndWarn) < 60*time.Second {
+		if ulog.UpstreamTimeToTime().Sub(ufi.StartWarn) > -59*time.Second && ulog.UpstreamTimeToTime().Sub(ufi.EndWarn) < 59*time.Second {
 
 		} else {
 			DeBugPrintln("timeis:", ulog.UpstreamTimeToTime())
