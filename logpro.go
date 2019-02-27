@@ -18,7 +18,7 @@ import (
 )
 
 func initVersion(app *cli.App) {
-	app.Version = "1.1.0"
+	app.Version = "1.1.2"
 }
 
 func main() {
