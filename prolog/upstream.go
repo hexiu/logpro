@@ -443,23 +443,43 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 		jsonapi["dir"] = outdata
 	} else {
-		fp.URLErr.Sort()
-		list = fp.URLErr.CodeList
-		length := len(fp.URLErr.CodeList)
-		if length > int(ufi.OutLine) {
-			length = int(ufi.OutLine)
-		}
-		for _, url := range list[:length] {
-			DeBugPrintln(url)
-			if ufi.Format {
-				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
-				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
-				outdata = append(outdata, outlist)
-			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+		if ufi.Host == "" {
+			fp.Host.Sort()
+			list = fp.Host.CodeList
+			length := len(fp.Host.CodeList)
+			if length > int(ufi.OutLine) {
+				length = int(ufi.OutLine)
 			}
+			for _, url := range list[:length] {
+				DeBugPrintln(url)
+				if ufi.Format {
+					outstr := fmt.Sprintln(url, "\t", fp.Host.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2), "%")
+					outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+					outdata = append(outdata, outlist)
+				} else {
+					out += fmt.Sprintln(url, "\t", fp.Host.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2), "%")
+				}
+			}
+			jsonapi["host"] = outdata
+		} else {
+			fp.URLErr.Sort()
+			list = fp.URLErr.CodeList
+			length := len(fp.URLErr.CodeList)
+			if length > int(ufi.OutLine) {
+				length = int(ufi.OutLine)
+			}
+			for _, url := range list[:length] {
+				DeBugPrintln(url)
+				if ufi.Format {
+					outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+					outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+					outdata = append(outdata, outlist)
+				} else {
+					out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				}
+			}
+			jsonapi["uri"] = outdata
 		}
-		jsonapi["uri"] = outdata
 	}
 	// 恢复outdata 为空
 	outdata = [][]string{}
@@ -519,7 +539,7 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 	}
 	out += "\n"
-	jsonapi["host"] = outdata
+	jsonapi["upflux"] = outdata
 
 	if ufi.Format {
 		jsonstr, _ := json.Marshal(jsonapi)
@@ -748,12 +768,13 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 
 	} else {
 		if !strings.Contains(ulog.OriginalDomain, ufi.Host) {
+			DeBugPrintln(ulog)
 			return fp, true, err
 		}
 
 		filterpro.AllNum++
 		// if strings.Contains(ulog.OriginalDomain, host) {
-		if ulog.URL == "/" {
+		if ulog.URL == "/" || !strings.Contains(ulog.URL, "/") {
 			return fp, true, err
 		}
 		direct := strings.Split(ulog.URL, "/")[1]
