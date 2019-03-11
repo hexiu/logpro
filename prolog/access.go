@@ -652,14 +652,25 @@ func (si *SomeInfo) Add(key string) {
 
 // Sort 信息排序
 func (si *SomeInfo) Sort() {
-	length := len(si.CodeList)
-	for i := 0; i < length; i++ {
-		for j := i; j < length; j++ {
-			if si.CodeDict[si.CodeList[i]] < si.CodeDict[si.CodeList[j]] {
-				si.CodeList[j], si.CodeList[i] = si.CodeList[i], si.CodeList[j]
+	n := len(si.CodeList)
+	var sorted bool
+	for sorted = false; !sorted; n-- {
+		sorted = true
+		for j := 1; j < n; j++ {
+			if si.CodeDict[si.CodeList[j-1]] < si.CodeDict[si.CodeList[j]] {
+				si.CodeList[j], si.CodeList[j-1] = si.CodeList[j-1], si.CodeList[j]
+				sorted = false
 			}
 		}
 	}
+	// for i := 0; i < n; i++ {
+	// 	for j := i; j < n; j++ {
+	// 		if si.CodeDict[si.CodeList[i]] < si.CodeDict[si.CodeList[j]] {
+	// 			si.CodeList[j], si.CodeList[i] = si.CodeList[i], si.CodeList[j]
+	// 			// sorted = false
+	// 		}
+	// 	}
+	// }
 }
 
 // FilterPro 日志处理器
@@ -761,9 +772,19 @@ func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) 
 
 // FString 新版本输出
 func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
-	var jsonapi = make(map[string][][]string, 0)
+	var jsonapi = make(map[string]interface{}, 0)
 	var outdata [][]string
 	var list []string
+
+	if afi.Format {
+		jsonapi["refer"] = outdata
+		jsonapi["allnum"] = fp.AllNum
+		jsonapi["allerr"] = fp.ErrNum
+		jsonapi["json"] = true
+	} else {
+		out += "状态码整体占比为：" + FloatToString(float64(fp.ErrNum)/float64(fp.AllNum), 2) + " %"
+		out += "\n"
+	}
 	if dirt {
 		if afi.FluxSort {
 			fp.Flux.Sort()
@@ -778,7 +799,7 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		}
 		for _, url := range list[:length] {
 			if afi.Format {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
@@ -801,7 +822,7 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		}
 		for _, url := range list[:length] {
 			if afi.Format {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
@@ -821,11 +842,11 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "UA:\n"
 	for _, ua := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", ua, strconv.Itoa(int(fp.UA.CodeDict[ua])), strconv.Itoa(fp.Count()), fp.UA.CodeDict[ua], FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2))
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", ua, strconv.Itoa(int(fp.UA.CodeDict[ua])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2))
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
-			out += fmt.Sprintln(ua, "\t", fp.UA.CodeDict[ua], "\t", strconv.Itoa(fp.Count()), "\t", fp.UA.CodeDict[ua], "\t", FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2), "%")
+			out += fmt.Sprintln(ua, "\t", fp.UA.CodeDict[ua], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2), "%")
 		}
 	}
 	jsonapi["ua"] = outdata
@@ -840,11 +861,11 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "Refer:\n"
 	for _, refer := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.Refer.CodeDict[refer])), strconv.Itoa(fp.Count()), fp.Refer.CodeDict[refer], FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2))
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.Refer.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2))
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
-			out += fmt.Sprintln(refer, "\t", fp.Refer.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", fp.Refer.CodeDict[refer], "\t", FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2), "%")
+			out += fmt.Sprintln(refer, "\t", fp.Refer.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2), "%")
 		}
 	}
 	jsonapi["refer"] = outdata
@@ -873,14 +894,14 @@ func fproLogFile(all, some bool, linedata []byte, afi *FilterInfo, fpro *FilterP
 		index := match.FindAllIndex(linedata, 1)
 		var indexlog int
 		if len(index) == 0 {
-			peach := afi.EndWarn.String()[:16]
-			DeBugPrintln(afi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
-			// time.Sleep(100 * time.Second)
-			match, _ := regexp.Compile(peach)
-			index1 := match.FindAllIndex(linedata, 1)
-			if len(index1) != 0 {
-				indexlog = 0
-			}
+			// peach := afi.EndWarn.String()[:16]
+			// DeBugPrintln(afi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
+			// // time.Sleep(100 * time.Second)
+			// match, _ := regexp.Compile(peach)
+			// index1 := match.FindAllIndex(linedata, 1)
+			// if len(index1) != 0 {
+			indexlog = 0
+			// }
 		} else {
 			indexlog = index[0][0] - int(2*logger.KB)
 			if indexlog < 0 {
