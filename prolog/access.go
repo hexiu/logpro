@@ -58,7 +58,7 @@ type AccessLog struct {
 // NewAccessLog 创建一个新的访问日志结构
 func NewAccessLog(line string) *AccessLog {
 	linelist := strings.Split(line, "\001")
-	if len(linelist) != 31 && len(linelist) != 39 {
+	if len(linelist) != 31 && len(linelist) != 38 {
 		return nil
 	}
 	return &AccessLog{
@@ -161,13 +161,13 @@ func ReadFileFirstLine(filename string) (line string) {
 	linebuf := bytes.NewReader(linebyte)
 	linebufio := bufio.NewReader(linebuf)
 	lineb, _, err := linebufio.ReadLine()
+	DeBugPrintln("file-line first:", filename, string(lineb))
 	if err != nil {
 		panic(err)
 	}
 	if err == io.EOF {
 		return
 	}
-
 	return string(lineb)
 }
 
@@ -201,6 +201,8 @@ func ReadFileLastLine(filename string) (line string) {
 		return ""
 	}
 	line = linelist[len(linelist)-2:][0]
+	DeBugPrintln("file-line last:", filename, string(line))
+
 	DeBugPrintln(string(line))
 	return line
 }
@@ -270,7 +272,7 @@ func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 		panic(err)
 	}
 	modtime := afile.Stat.ModTime()
-	DeBugPrintln(stime.Sub(modtime), modtime, stime, afile.Filename)
+	DeBugPrintln("filetime sub:", afile.Filename, stime.Sub(modtime), modtime, stime, afile.Filename)
 	if stime.Sub(modtime) > 0 {
 		return false
 	}
@@ -280,7 +282,7 @@ func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 	}
 	afile.FirstLine = NewAccessLog(ReadFileFirstLine(afile.Filename))
 	afile.LastLine = NewAccessLog(ReadFileLastLine(afile.Filename))
-	DeBugPrintln(afile.FirstLine, afile.LastLine)
+	DeBugPrintln("file init : ", afile.Filename, afile.FirstLine, afile.LastLine)
 	if afile.FirstLine == nil || afile.LastLine == nil {
 		return false
 	}
@@ -389,14 +391,15 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 		afile := NewAccessFile(file)
 		ok := afile.Init(apro.StartWarn, apro.EndWarn)
 		if !ok {
+			DeBugPrintln("no ok:", afile.Filename)
 			afile.File.Close()
 			continue
 		}
 		afile.JudgeContains(apro.StartWarn, apro.EndWarn)
-		DeBugPrintln(afile.All, afile.Some)
-		DeBugPrintln(afile.FirstLine)
-		DeBugPrintln(afile.LastLine)
-		DeBugPrintln(afile.Filename, afile.FirstLine.accessTimeToTime(), afile.LastLine.accessTimeToTime())
+		DeBugPrintln("judge file: ", afile.Filename, afile.All, afile.Some)
+		DeBugPrintln("judge file first : ", afile.FirstLine)
+		DeBugPrintln("judge file last : ", afile.LastLine)
+		DeBugPrintln("judge file time: ", afile.Filename, afile.FirstLine.accessTimeToTime(), afile.LastLine.accessTimeToTime())
 		if afile.All || afile.Some {
 			apro.LogFile = append(apro.LogFile, afile)
 			continue
@@ -418,7 +421,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 	zonesize := afi.ZoneSize
 	for _, af := range apro.LogFile {
 		var n int64
-		DeBugPrintln(af.Filename)
+		DeBugPrintln("willcatfile:", af.Filename, af.All, af.Some)
 
 		var lastdata = make([]byte, 2048)
 		for n < af.Stat.Size() {
@@ -439,6 +442,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 		wg.Wait()
 
 		if filterpro.AllNum >= afi.MaxLine {
+			DeBugPrintln("file break: ", filterpro.AllNum, afi.MaxLine)
 			break
 		}
 	}
@@ -472,7 +476,7 @@ func NewFilterInfo() *FilterInfo {
 	return &FilterInfo{
 		ZoneSize: 100 * logger.MB,
 		OutLine:  10,
-		MaxLine:  100000,
+		MaxLine:  10000000,
 	}
 }
 
@@ -509,6 +513,9 @@ func fReadLog(lineread *bufio.Reader, afi *FilterInfo, filterpro *FilterPro) (fp
 					DeBugPrintln("list:", strings.Split(alog.String(), "\001"), len(strings.Split(alog.String(), "\001")))
 					DeBugPrintln(len(alog.AccessTimeThreadNum), alog.AccessTimeThreadNum, len(alog.AccessTimeThreadNum))
 					if alog.accessTimeToTime().Sub(afi.EndWarn) > 0 {
+						return filterpro, OutTimeZone
+					}
+					if alog.accessTimeToTime().Sub(afi.StartWarn) < 0 {
 						return filterpro, OutTimeZone
 					}
 				}
@@ -556,6 +563,8 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 		}
 	}
 
+	DeBugPrintln("base:", alog.AccessTimeThreadNum, alog.Host, alog.BackCode, alog.URL)
+
 	if afi.Host == "" {
 		filterpro.Lock.Lock()
 		defer filterpro.Lock.Unlock()
@@ -564,14 +573,18 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 		var match bool
 		match, err = regexp.MatchString(afi.Code, alog.BackCode)
 		if err != nil {
+			fmt.Println("error:", err, afi.Code, alog.BackCode)
 			return filterpro, false, err
 		}
 		if match {
+			DeBugPrintln("matchcodeinfo:", alog.AccessTimeThreadNum, afi.Code, alog.BackCode)
 			filterpro.ErrNum++
 			filterpro.URLErr.Add(alog.Host)
 			filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
 			filterpro.UA.Add(alog.UserAgent)
 			filterpro.Refer.Add(alog.Referer)
+		} else {
+			DeBugPrintln("codeinfo:", alog.AccessTimeThreadNum, afi.Code, alog.BackCode)
 		}
 	} else {
 		if !strings.Contains(alog.Host, afi.Host) {
@@ -894,14 +907,14 @@ func fproLogFile(all, some bool, linedata []byte, afi *FilterInfo, fpro *FilterP
 		index := match.FindAllIndex(linedata, 1)
 		var indexlog int
 		if len(index) == 0 {
-			// peach := afi.EndWarn.String()[:16]
-			// DeBugPrintln(afi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
-			// // time.Sleep(100 * time.Second)
-			// match, _ := regexp.Compile(peach)
-			// index1 := match.FindAllIndex(linedata, 1)
-			// if len(index1) != 0 {
-			indexlog = 0
-			// }
+			peach := afi.EndWarn.String()[:16]
+			DeBugPrintln(afi.EndWarn, "\n\n\n", peach, "\n\n\n\n")
+			// time.Sleep(100 * time.Second)
+			match, _ := regexp.Compile(peach)
+			index1 := match.FindAllIndex(linedata, 1)
+			if len(index1) != 0 {
+				indexlog = 0
+			}
 		} else {
 			indexlog = index[0][0] - int(2*logger.KB)
 			if indexlog < 0 {
