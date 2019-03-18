@@ -144,7 +144,7 @@ func commUAction(c *cli.Context) {
 		}
 		path = filepath.Join(basepath, path)
 	}
-	files, err := prolog.ListDirFile(path, `(hy_access)|(upstream)`)
+	files, err := prolog.ListDirFile(path, `(hy_access.*)|(upstream.*)`)
 	if err != nil {
 		log.Println(err)
 	}
@@ -208,7 +208,7 @@ func commUAction(c *cli.Context) {
 		ufi.MatchNumSort = true
 	}
 	ufi.OutLine = int64(c.Uint("outline"))
-	ufi.MaxLine = int64(size)
+	ufi.MaxLine = 10000000
 	ufi.Format = c.Bool("format")
 	ufi.FilterString = c.String("filter")
 	ufi.LogQuit = c.Bool("files")
@@ -282,7 +282,7 @@ func initAccessFlag(app *cli.Command) {
 	logfilter := cli.StringFlag{
 		Name:  "filter,F",
 		Value: "",
-		Usage: "Enter Sort method : flux or matchnum.",
+		Usage: "filter.",
 	}
 	logquit := cli.BoolFlag{
 		Name:  "q,files",
@@ -324,7 +324,7 @@ func commAction(c *cli.Context) {
 	}
 	var stime time.Time
 	var etime time.Time
-	var datasize int64 = 5
+	var datasize int64 = 100
 	var retcode string
 	retcode = c.String("retcode")
 	size := c.Uint64("datasize")
@@ -374,7 +374,7 @@ func commAction(c *cli.Context) {
 		afi.MatchNumSort = true
 	}
 	afi.OutLine = int64(c.Uint("outline"))
-	afi.MaxLine = int64(size)
+	afi.MaxLine = 10000000
 	afi.Format = c.Bool("format")
 	afi.FilterString = c.String("filter")
 	afi.LogQuit = c.Bool("files")
