@@ -623,6 +623,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 		wg.Wait()
 
 		if filterpro.AllNum >= ufi.MaxLine {
+			DeBugPrintln("file break: ", filterpro.AllNum, ufi.MaxLine)
 			break
 		}
 	}
@@ -703,6 +704,9 @@ func fReadULog(lineread *bufio.Reader, ufi *FilterInfo, filterpro *FilterUPro) (
 					DeBugPrintln("list:", strings.Split(ulog.String(), "\001"), len(strings.Split(ulog.String(), "\001")))
 					DeBugPrintln(len(ulog.UpstreamTimeThreadNum), ulog.UpstreamTimeThreadNum, len(ulog.UpstreamTimeThreadNum))
 					if ulog.UpstreamTimeToTime().Sub(ufi.EndWarn) > 0 {
+						return filterpro, OutTimeZone
+					}
+					if ulog.UpstreamTimeToTime().Sub(ufi.StartWarn) < 0 {
 						return filterpro, OutTimeZone
 					}
 				}
