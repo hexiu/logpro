@@ -7,11 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"standAlone/utils/logger"
 	"strings"
 	"time"
 
-	"github.com/hexiu/utils/timepro"
+	"standAlone/utils/logger"
+
+	"standAlone/utils/timepro"
 
 	"github.com/astaxie/beego/logs"
 	cli "gopkg.in/urfave/cli.v2"
@@ -23,6 +24,7 @@ func initVersion(app *cli.App) {
 
 func main() {
 	// fmt.Println("log pro! mail: jaxiuhe@tencent.com.")
+
 	app := cli.NewApp()
 	initVersion(app)
 	app.Name = "logpro"
