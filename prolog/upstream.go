@@ -8,13 +8,14 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"standAlone/utils/logger"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/hexiu/utils/timepro"
+	"standAlone/utils/logger"
+
+	"standAlone/utils/timepro"
 )
 
 // UpstreamLog 访问日志处理结构
@@ -47,7 +48,7 @@ type UpstreamLog struct {
 // NewUpstreamLog 创建一个新的访问日志结构
 func NewUpstreamLog(line string) *UpstreamLog {
 	linelist := strings.Split(line, "\001")
-	if len(linelist) != 22 {
+	if len(linelist) < 21 {
 		DeBugPrintln(len(linelist), len(line), line, []byte(line))
 		return nil
 	}
@@ -73,8 +74,8 @@ func NewUpstreamLog(line string) *UpstreamLog {
 		ErrCode:               linelist[18],
 		OriginalDomain:        linelist[19],
 		UUID:                  linelist[20],
-		LogMarkKey:            linelist[21],
-		Line:                  []byte(line),
+		// LogMarkKey:            linelist[21],
+		Line: []byte(line),
 	}
 }
 
@@ -114,10 +115,10 @@ func (ulog *UpstreamLog) Filter(content string) (match bool) {
 	return true
 }
 
-// ToInt64 转换为int64
-func (ulog *UpstreamLog) ToInt64(str string) int64 {
+// ToFloat64 转换为int64
+func (ulog *UpstreamLog) ToFloat64(str string) float64 {
 	str = strings.TrimSpace(str)
-	n, err := strconv.ParseInt(str, 10, 64)
+	n, err := strconv.ParseFloat(str, 64)
 	if err != nil {
 		return 0
 	}
@@ -277,10 +278,10 @@ type FilterUPro struct {
 	ErrCode       *SomeInfo
 	UpstreamTimer *SomeInfo
 	UpFlux        *SomeInfo
-	AllFlux       int64
-	AllNum        int64
-	ErrNum        int64
-	MaxSize       int64
+	AllFlux       float64
+	AllNum        float64
+	ErrNum        float64
+	MaxSize       float64
 	Lock          *sync.Mutex
 }
 
@@ -622,7 +623,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 		}
 		wg.Wait()
 
-		if filterpro.AllNum >= ufi.MaxLine {
+		if filterpro.AllNum >= float64(ufi.MaxLine) {
 			DeBugPrintln("file break: ", filterpro.AllNum, ufi.MaxLine)
 			break
 		}
@@ -771,14 +772,14 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 		filterpro.AllNum++
 		if !match {
 			filterpro.ErrNum++
-			filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+			filterpro.AllFlux += ulog.ToFloat64(ulog.BackContentSize)
 			filterpro.Host.Add(ulog.OriginalDomain)
 			filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 
 			DeBugPrintln("code:", ulog.ErrCode)
 			filterpro.ErrCode.Add(ulog.ErrCode)
 			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-			filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToInt64(ulog.BackContentSize))
+			filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToFloat64(ulog.BackContentSize))
 		}
 
 	} else {
@@ -797,7 +798,7 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 		if ufi.DirectoryFlag {
 			if strings.Contains(ulog.URL, ufi.Directory) {
 				if !match {
-					filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+					filterpro.AllFlux += ulog.ToFloat64(ulog.BackContentSize)
 
 					filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 					filterpro.Host.Add(ulog.OriginalDomain)
@@ -805,12 +806,12 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 					filterpro.URLErr.Add(ulog.URL)
 					filterpro.ErrCode.Add(ulog.ErrCode)
 					filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-					filterpro.UpFlux.AddNum(ulog.URL, ulog.ToInt64(ulog.BackContentSize))
+					filterpro.UpFlux.AddNum(ulog.URL, ulog.ToFloat64(ulog.BackContentSize))
 				}
 			}
 		} else {
 			if !match {
-				filterpro.AllFlux += ulog.ToInt64(ulog.BackContentSize)
+				filterpro.AllFlux += ulog.ToFloat64(ulog.BackContentSize)
 
 				filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 				filterpro.Host.Add(ulog.OriginalDomain)
@@ -818,7 +819,7 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 				filterpro.URLErr.Add(ulog.URL)
 				filterpro.ErrCode.Add(ulog.ErrCode)
 				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-				filterpro.UpFlux.AddNum(direct, ulog.ToInt64(ulog.BackContentSize))
+				filterpro.UpFlux.AddNum(direct, ulog.ToFloat64(ulog.BackContentSize))
 			}
 		}
 
