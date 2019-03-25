@@ -9,14 +9,16 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"standAlone/utils/logger"
+	"sort"
 	"strconv"
 	"sync"
+
+	"standAlone/utils/logger"
 
 	"strings"
 	"time"
 
-	"github.com/hexiu/utils/timepro"
+	"standAlone/utils/timepro"
 )
 
 // AccessLog 访问日志处理结构
@@ -58,7 +60,7 @@ type AccessLog struct {
 // NewAccessLog 创建一个新的访问日志结构
 func NewAccessLog(line string) *AccessLog {
 	linelist := strings.Split(line, "\001")
-	if len(linelist) != 31 && len(linelist) != 38 {
+	if len(linelist) < 31 {
 		return nil
 	}
 	return &AccessLog{
@@ -133,10 +135,10 @@ func (alog *AccessLog) Filter(content string) (match bool, err error) {
 	return match, err
 }
 
-// ToInt64 转换为int64
-func (alog *AccessLog) ToInt64(str string) int64 {
+// ToFloat64 转换为Float64
+func (alog *AccessLog) ToFloat64(str string) float64 {
 	str = strings.TrimSpace(str)
-	n, err := strconv.ParseInt(str, 10, 64)
+	n, err := strconv.ParseFloat(str, 64)
 	if err != nil {
 		return 0
 	}
@@ -580,9 +582,10 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 			DeBugPrintln("matchcodeinfo:", alog.AccessTimeThreadNum, afi.Code, alog.BackCode)
 			filterpro.ErrNum++
 			filterpro.URLErr.Add(alog.Host)
-			filterpro.Flux.AddNum(alog.Host, alog.ToInt64(alog.SendDataSize))
+			filterpro.Flux.AddNum(alog.Host, alog.ToFloat64(alog.SendDataSize))
 			filterpro.UA.Add(alog.UserAgent)
 			filterpro.Refer.Add(alog.Referer)
+			filterpro.ClientIP.Add(alog.ClientIP)
 		} else {
 			DeBugPrintln("codeinfo:", alog.AccessTimeThreadNum, afi.Code, alog.BackCode)
 		}
@@ -608,43 +611,61 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 				afi.Directory = strings.Split(alog.URL, "/")[1]
 				filterpro.Dir.Add(afi.Directory)
 				if afi.FluxSort {
-					filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
+					filterpro.Flux.AddNum(alog.URL, alog.ToFloat64(alog.SendDataSize))
 					filterpro.URLErr.Add(alog.URL)
 					filterpro.UA.Add(alog.UserAgent)
+					filterpro.ClientIP.Add(alog.ClientIP)
 					filterpro.Refer.Add(alog.Referer)
 				} else {
-					filterpro.Flux.AddNum(afi.Directory, alog.ToInt64(alog.SendDataSize))
+					filterpro.Flux.AddNum(afi.Directory, alog.ToFloat64(alog.SendDataSize))
 					filterpro.URLErr.Add(afi.Directory)
 					filterpro.UA.Add(alog.UserAgent)
 					filterpro.Refer.Add(alog.Referer)
+					filterpro.ClientIP.Add(alog.ClientIP)
 				}
 			} else {
-				filterpro.Flux.AddNum(alog.URL, alog.ToInt64(alog.SendDataSize))
+				filterpro.Flux.AddNum(alog.URL, alog.ToFloat64(alog.SendDataSize))
 				filterpro.URLErr.Add(alog.URL)
 				filterpro.UA.Add(alog.UserAgent)
 				filterpro.Refer.Add(alog.Referer)
+				filterpro.ClientIP.Add(alog.ClientIP)
 			}
 		}
 	}
 	return filterpro, true, err
 }
 
+// Less 比较
+func (si *SomeInfo) Less(i, j int) bool {
+	return si.CodeDict[si.CodeList[i]] > si.CodeDict[si.CodeList[j]]
+}
+
+// Swap 交换
+func (si *SomeInfo) Swap(i, j int) {
+	si.CodeList[i], si.CodeList[j] = si.CodeList[j], si.CodeList[i]
+}
+
+// Len 列表长度
+func (si *SomeInfo) Len() int {
+	return len(si.CodeList)
+}
+
 // SomeInfo 一些 信息
 type SomeInfo struct {
-	CodeDict map[string]int64
+	CodeDict map[string]float64
 	CodeList []string
 }
 
 // NewSomeInfo 一些信息结构初始化
 func NewSomeInfo() *SomeInfo {
 	return &SomeInfo{
-		CodeDict: make(map[string]int64, 0),
+		CodeDict: make(map[string]float64, 0),
 		CodeList: make([]string, 0),
 	}
 }
 
 // AddNum 添加流量信息
-func (si *SomeInfo) AddNum(key string, num int64) {
+func (si *SomeInfo) AddNum(key string, num float64) {
 	if _, ok := si.CodeDict[key]; ok {
 		si.CodeDict[key] += num
 	} else {
@@ -665,17 +686,19 @@ func (si *SomeInfo) Add(key string) {
 
 // Sort 信息排序
 func (si *SomeInfo) Sort() {
-	n := len(si.CodeList)
-	var sorted bool
-	for sorted = false; !sorted; n-- {
-		sorted = true
-		for j := 1; j < n; j++ {
-			if si.CodeDict[si.CodeList[j-1]] < si.CodeDict[si.CodeList[j]] {
-				si.CodeList[j], si.CodeList[j-1] = si.CodeList[j-1], si.CodeList[j]
-				sorted = false
-			}
-		}
-	}
+	// n := len(si.CodeList)
+	// var sorted bool
+	// for sorted = false; !sorted; n-- {
+	// 	sorted = true
+	// 	for j := 1; j < n; j++ {
+	// 		if si.CodeDict[si.CodeList[j-1]] < si.CodeDict[si.CodeList[j]] {
+	// 			si.CodeList[j], si.CodeList[j-1] = si.CodeList[j-1], si.CodeList[j]
+	// 			sorted = false
+	// 		}
+	// 	}
+	// }
+	sort.Sort(si)
+
 	// for i := 0; i < n; i++ {
 	// 	for j := i; j < n; j++ {
 	// 		if si.CodeDict[si.CodeList[i]] < si.CodeDict[si.CodeList[j]] {
@@ -688,30 +711,32 @@ func (si *SomeInfo) Sort() {
 
 // FilterPro 日志处理器
 type FilterPro struct {
-	LogInfo []*AccessLog
-	URL     *SomeInfo
-	Dir     *SomeInfo
-	URLErr  *SomeInfo
-	Refer   *SomeInfo
-	Flux    *SomeInfo
-	UA      *SomeInfo
-	AllNum  int64
-	ErrNum  int64
-	MaxSize int64
-	Lock    *sync.Mutex
+	LogInfo  []*AccessLog
+	URL      *SomeInfo
+	Dir      *SomeInfo
+	URLErr   *SomeInfo
+	Refer    *SomeInfo
+	Flux     *SomeInfo
+	UA       *SomeInfo
+	ClientIP *SomeInfo
+	AllNum   int64
+	ErrNum   int64
+	MaxSize  int64
+	Lock     *sync.Mutex
 }
 
 // NewFilterPro 创建一个新的处理器
 func NewFilterPro() *FilterPro {
 	return &FilterPro{
-		URL:    NewSomeInfo(),
-		Dir:    NewSomeInfo(),
-		URLErr: NewSomeInfo(),
-		Flux:   NewSomeInfo(),
-		UA:     NewSomeInfo(),
-		Refer:  NewSomeInfo(),
-		AllNum: 0,
-		Lock:   &sync.Mutex{},
+		URL:      NewSomeInfo(),
+		Dir:      NewSomeInfo(),
+		URLErr:   NewSomeInfo(),
+		Flux:     NewSomeInfo(),
+		UA:       NewSomeInfo(),
+		Refer:    NewSomeInfo(),
+		ClientIP: NewSomeInfo(),
+		AllNum:   0,
+		Lock:     &sync.Mutex{},
 	}
 }
 
@@ -770,7 +795,7 @@ func (fp *FilterPro) String(dirt bool, jsondata bool, outline int, sort string) 
 				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 				outdata = append(outdata, outlist)
 			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "MB\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
 			}
 		}
 		jsonapi["uri"] = outdata
@@ -882,6 +907,25 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		}
 	}
 	jsonapi["refer"] = outdata
+
+	outdata = [][]string{}
+	length = int64(len(fp.ClientIP.CodeList))
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	fp.ClientIP.Sort()
+	list = fp.ClientIP.CodeList[:length]
+	out += "Refer:\n"
+	for _, refer := range list[:length] {
+		if afi.Format {
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.ClientIP.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.ClientIP.CodeDict[refer])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(refer, "\t", fp.ClientIP.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ClientIP.CodeDict[refer])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["clientip"] = outdata
 
 	if afi.Format {
 		jsonstr, _ := json.Marshal(jsonapi)
