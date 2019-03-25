@@ -3,3 +3,4 @@ logs/*
 logpro
 logpro.gz
 .gitignore
+.vscode
