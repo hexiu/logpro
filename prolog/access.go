@@ -443,7 +443,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 		}
 		wg.Wait()
 
-		if filterpro.AllNum >= afi.MaxLine {
+		if filterpro.AllNum >= float64(afi.MaxLine) {
 			DeBugPrintln("file break: ", filterpro.AllNum, afi.MaxLine)
 			break
 		}
@@ -581,8 +581,10 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 		if match {
 			DeBugPrintln("matchcodeinfo:", alog.AccessTimeThreadNum, afi.Code, alog.BackCode)
 			filterpro.ErrNum++
+			fluxnum := alog.ToFloat64(alog.SendDataSize)
+			filterpro.AllFlux += fluxnum
 			filterpro.URLErr.Add(alog.Host)
-			filterpro.Flux.AddNum(alog.Host, alog.ToFloat64(alog.SendDataSize))
+			filterpro.Flux.AddNum(alog.Host, fluxnum)
 			filterpro.UA.Add(alog.UserAgent)
 			filterpro.Refer.Add(alog.Referer)
 			filterpro.ClientIP.Add(alog.ClientIP)
@@ -610,21 +612,18 @@ func logFilter(alog *AccessLog, afi *FilterInfo, filterpro *FilterPro, i int) (f
 			if afi.DirectoryFlag {
 				afi.Directory = strings.Split(alog.URL, "/")[1]
 				filterpro.Dir.Add(afi.Directory)
-				if afi.FluxSort {
-					filterpro.Flux.AddNum(alog.URL, alog.ToFloat64(alog.SendDataSize))
-					filterpro.URLErr.Add(alog.URL)
-					filterpro.UA.Add(alog.UserAgent)
-					filterpro.ClientIP.Add(alog.ClientIP)
-					filterpro.Refer.Add(alog.Referer)
-				} else {
-					filterpro.Flux.AddNum(afi.Directory, alog.ToFloat64(alog.SendDataSize))
-					filterpro.URLErr.Add(afi.Directory)
-					filterpro.UA.Add(alog.UserAgent)
-					filterpro.Refer.Add(alog.Referer)
-					filterpro.ClientIP.Add(alog.ClientIP)
-				}
+				fluxnum := alog.ToFloat64(alog.SendDataSize)
+				filterpro.AllFlux += fluxnum
+				filterpro.Flux.AddNum(afi.Directory, fluxnum)
+				filterpro.URLErr.Add(afi.Directory)
+				filterpro.UA.Add(alog.UserAgent)
+				filterpro.ClientIP.Add(alog.ClientIP)
+				filterpro.Refer.Add(alog.Referer)
+
 			} else {
-				filterpro.Flux.AddNum(alog.URL, alog.ToFloat64(alog.SendDataSize))
+				fluxnum := alog.ToFloat64(alog.SendDataSize)
+				filterpro.AllFlux += fluxnum
+				filterpro.Flux.AddNum(alog.URL, fluxnum)
 				filterpro.URLErr.Add(alog.URL)
 				filterpro.UA.Add(alog.UserAgent)
 				filterpro.Refer.Add(alog.Referer)
@@ -719,9 +718,10 @@ type FilterPro struct {
 	Flux     *SomeInfo
 	UA       *SomeInfo
 	ClientIP *SomeInfo
-	AllNum   int64
-	ErrNum   int64
-	MaxSize  int64
+	AllFlux  float64
+	AllNum   float64
+	ErrNum   float64
+	MaxSize  float64
 	Lock     *sync.Mutex
 }
 
@@ -823,55 +823,55 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 		out += "状态码整体占比为：" + FloatToString(float64(fp.ErrNum)/float64(fp.AllNum), 2) + " %"
 		out += "\n"
 	}
-	if dirt {
-		if afi.FluxSort {
-			fp.Flux.Sort()
-			list = fp.Flux.CodeList
-		} else {
-			fp.URLErr.Sort()
-			list = fp.URLErr.CodeList
-		}
-		length := int64(len(fp.URLErr.CodeList))
-		if length > afi.OutLine {
-			length = afi.OutLine
-		}
-		for _, url := range list[:length] {
-			if afi.Format {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
-				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
-				outdata = append(outdata, outlist)
-			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "MB\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
-			}
-		}
-		jsonapi["uri"] = outdata
-
+	out += "URI:\n"
+	if afi.FluxSort {
+		fp.Flux.Sort()
+		list = fp.Flux.CodeList
 	} else {
-		if afi.FluxSort {
-			fp.Flux.Sort()
-			list = fp.Flux.CodeList
-		} else {
-			fp.URLErr.Sort()
-			list = fp.URLErr.CodeList
-		}
-		length := int64(len(fp.URLErr.CodeList))
-		if length > afi.OutLine {
-			length = afi.OutLine
-		}
-		for _, url := range list[:length] {
-			if afi.Format {
-				outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
-				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
-				outdata = append(outdata, outlist)
-			} else {
-				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), "MB\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
-			}
-		}
-		jsonapi["uri"] = outdata
+		fp.URLErr.Sort()
+		list = fp.URLErr.CodeList
 	}
+	length := int64(len(fp.URLErr.CodeList))
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	for _, url := range list[:length] {
+		if afi.Format {
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["uri"] = outdata
 
 	outdata = [][]string{}
-	length := int64(len(fp.UA.CodeList))
+	length = int64(len(fp.Flux.CodeList))
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	fp.Flux.Sort()
+	list = fp.Flux.CodeList
+	if length > afi.OutLine {
+		length = afi.OutLine
+	}
+	out += "Flux:\n"
+	for _, url := range list[:length] {
+		if afi.Format {
+			outstr := fmt.Sprintln(url, "\t", strconv.Itoa(int(fp.Flux.CodeDict[url]/float64(logger.MB))), "\t", strconv.Itoa(int(fp.AllFlux/float64(logger.MB))), "\t", FloatToString((float64(fp.Flux.CodeDict[url])/float64(logger.MB))/(fp.AllFlux/float64(logger.MB)), 2), "%")
+
+			// outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", strconv.Itoa(int(fp.Flux.CodeDict[url]/float64(logger.MB))), "MB\t", strconv.Itoa(int(fp.AllFlux/float64(logger.MB))), "MB\t", FloatToString((float64(fp.Flux.CodeDict[url])/float64(logger.MB))/(fp.AllFlux/float64(logger.MB)), 2), "%")
+		}
+	}
+	jsonapi["flux"] = outdata
+
+	outdata = [][]string{}
+	length = int64(len(fp.UA.CodeList))
 	if length > afi.OutLine {
 		length = afi.OutLine
 	}

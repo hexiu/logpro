@@ -278,6 +278,7 @@ type FilterUPro struct {
 	ErrCode       *SomeInfo
 	UpstreamTimer *SomeInfo
 	UpFlux        *SomeInfo
+	FwdDomain     *SomeInfo
 	AllFlux       float64
 	AllNum        float64
 	ErrNum        float64
@@ -294,6 +295,7 @@ func NewFilterUPro() *FilterUPro {
 		ErrCode:       NewSomeInfo(),
 		UpstreamTimer: NewSomeInfo(),
 		UpFlux:        NewSomeInfo(),
+		FwdDomain:     NewSomeInfo(),
 		AllNum:        0,
 		MaxSize:       0,
 		Lock:          &sync.Mutex{},
@@ -497,7 +499,7 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	// 恢复outdata 为空
 	outdata = [][]string{}
 
-	out += "\n"
+	out += "UpstreamIP:\n"
 
 	list = fp.UpstreamIP.CodeList
 	length := len(fp.UpstreamIP.CodeList)
@@ -515,7 +517,7 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 	}
 	jsonapi["uip"] = outdata
-	out += "\n"
+	out += "ErrCode: \n"
 	outdata = [][]string{}
 
 	list = fp.ErrCode.CodeList
@@ -534,7 +536,27 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 	}
 	jsonapi["errcode"] = outdata
-	out += "\n"
+
+	out += "FwdHost:\n"
+	outdata = [][]string{}
+	list = fp.FwdDomain.CodeList
+	length = len(fp.FwdDomain.CodeList)
+	if length > int(ufi.OutLine) {
+		length = int(ufi.OutLine)
+	}
+	for _, url := range list[:length] {
+		DeBugPrintln(url)
+		if ufi.Format {
+			outstr := fmt.Sprintln(url, "\t", fp.FwdDomain.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.FwdDomain.CodeDict[url])/float64(fp.Count()), 2), "%")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outdata = append(outdata, outlist)
+		} else {
+			out += fmt.Sprintln(url, "\t", fp.FwdDomain.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.FwdDomain.CodeDict[url])/float64(fp.Count()), 2), "%")
+		}
+	}
+	jsonapi["fwdhost"] = outdata
+
+	out += "Flux:\n"
 	outdata = [][]string{}
 	list = fp.UpFlux.CodeList
 	length = len(fp.UpFlux.CodeList)
@@ -551,6 +573,7 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 			out += fmt.Sprintln(url, "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")
 		}
 	}
+	jsonapi["flux"] = outdata
 	out += "\n"
 
 	if ufi.Format {
@@ -780,6 +803,7 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 			filterpro.ErrCode.Add(ulog.ErrCode)
 			filterpro.UpstreamIP.Add(ulog.UpstreamIP)
 			filterpro.UpFlux.AddNum(ulog.OriginalDomain, ulog.ToFloat64(ulog.BackContentSize))
+			filterpro.FwdDomain.Add(ulog.FwdOriginalDomain)
 		}
 
 	} else {
@@ -803,10 +827,11 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 					filterpro.UpstreamTimer.Add(ulog.UpstreamIP)
 					filterpro.Host.Add(ulog.OriginalDomain)
 					filterpro.ErrNum++
-					filterpro.URLErr.Add(ulog.URL)
+					filterpro.URLErr.Add(direct)
 					filterpro.ErrCode.Add(ulog.ErrCode)
 					filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-					filterpro.UpFlux.AddNum(ulog.URL, ulog.ToFloat64(ulog.BackContentSize))
+					filterpro.FwdDomain.Add(ulog.FwdOriginalDomain)
+					filterpro.UpFlux.AddNum(direct, ulog.ToFloat64(ulog.BackContentSize))
 				}
 			}
 		} else {
@@ -819,7 +844,8 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 				filterpro.URLErr.Add(ulog.URL)
 				filterpro.ErrCode.Add(ulog.ErrCode)
 				filterpro.UpstreamIP.Add(ulog.UpstreamIP)
-				filterpro.UpFlux.AddNum(direct, ulog.ToFloat64(ulog.BackContentSize))
+				filterpro.FwdDomain.Add(ulog.FwdOriginalDomain)
+				filterpro.UpFlux.AddNum(ulog.URL, ulog.ToFloat64(ulog.BackContentSize))
 			}
 		}
 
