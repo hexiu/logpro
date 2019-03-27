@@ -449,8 +449,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 		}
 		for _, url := range list[:length] {
 			if ufi.Format {
-				outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
-				outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+				outstr := fmt.Sprintln(url, "\001", fp.URLErr.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
+				outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 				outdata = append(outdata, outlist)
 			} else {
 				out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -468,8 +468,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 			for _, url := range list[:length] {
 				DeBugPrintln(url)
 				if ufi.Format {
-					outstr := fmt.Sprintln(url, "\t", fp.Host.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2))
-					outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+					outstr := fmt.Sprintln(url, "\001", fp.Host.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2))
+					outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 					outdata = append(outdata, outlist)
 				} else {
 					out += fmt.Sprintln(url, "\t", fp.Host.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Host.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -486,8 +486,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 			for _, url := range list[:length] {
 				DeBugPrintln(url)
 				if ufi.Format {
-					outstr := fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
-					outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+					outstr := fmt.Sprintln(url, "\001", fp.URLErr.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+					outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 					outdata = append(outdata, outlist)
 				} else {
 					out += fmt.Sprintln(url, "\t", fp.URLErr.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -509,8 +509,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if ufi.Format {
-			outstr := fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintln(url, "\001", fp.UpstreamIP.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(url, "\t", fp.UpstreamIP.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UpstreamIP.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -528,8 +528,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if ufi.Format {
-			outstr := fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintln(url, "\001", fp.ErrCode.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(url, "\t", fp.ErrCode.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ErrCode.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -547,8 +547,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if ufi.Format {
-			outstr := fmt.Sprintln(url, "\t", fp.FwdDomain.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.FwdDomain.CodeDict[url])/float64(fp.Count()), 2), "%")
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintln(url, "\001", fp.FwdDomain.CodeDict[url], "\001", strconv.Itoa(fp.Count()), "\001", FloatToString(float64(fp.FwdDomain.CodeDict[url])/float64(fp.Count()), 2), "%")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(url, "\t", fp.FwdDomain.CodeDict[url], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.FwdDomain.CodeDict[url])/float64(fp.Count()), 2), "%")
@@ -566,8 +566,8 @@ func (fp *FilterUPro) FString(dirt bool, ufi *FilterInfo) (out string) {
 	for _, url := range list[:length] {
 		DeBugPrintln(url)
 		if ufi.Format {
-			outstr := fmt.Sprintln(url, "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "\t", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintln(url, "\001", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "\001", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "\001", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(url, "\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.AllFlux)/float64(logger.MB), 2), "M\t", FloatToString(float64(fp.UpFlux.CodeDict[url])/float64(fp.AllFlux), 2), "%")

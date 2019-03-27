@@ -837,7 +837,7 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	}
 	for _, url := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Flux.CodeDict[url])/float64(logger.MB), 2), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
+			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
 			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
 			outdata = append(outdata, outlist)
 		} else {
@@ -859,10 +859,10 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "Flux:\n"
 	for _, url := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintln(url, "\t", strconv.Itoa(int(fp.Flux.CodeDict[url]/float64(logger.MB))), "\t", strconv.Itoa(int(fp.AllFlux/float64(logger.MB))), "\t", FloatToString((float64(fp.Flux.CodeDict[url])/float64(logger.MB))/(fp.AllFlux/float64(logger.MB)), 2), "%")
+			outstr := fmt.Sprintln(url, "\001", strconv.Itoa(int(fp.Flux.CodeDict[url]/float64(logger.MB))), "\001", strconv.Itoa(int(fp.AllFlux/float64(logger.MB))), "\001", FloatToString((float64(fp.Flux.CodeDict[url])/float64(logger.MB))/(fp.AllFlux/float64(logger.MB)), 2), "%")
 
 			// outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", url, strconv.Itoa(int(fp.URLErr.CodeDict[url])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.URLErr.CodeDict[url])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(url, "\t", strconv.Itoa(int(fp.Flux.CodeDict[url]/float64(logger.MB))), "MB\t", strconv.Itoa(int(fp.AllFlux/float64(logger.MB))), "MB\t", FloatToString((float64(fp.Flux.CodeDict[url])/float64(logger.MB))/(fp.AllFlux/float64(logger.MB)), 2), "%")
@@ -880,8 +880,8 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "UA:\n"
 	for _, ua := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", ua, strconv.Itoa(int(fp.UA.CodeDict[ua])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintf("%s\001%s\001%s\001%s\n", ua, strconv.Itoa(int(fp.UA.CodeDict[ua])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(ua, "\t", fp.UA.CodeDict[ua], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.UA.CodeDict[ua])/float64(fp.Count()), 2), "%")
@@ -899,8 +899,8 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "Refer:\n"
 	for _, refer := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.Refer.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintf("%s\001%s\001%s\001%s\n", refer, strconv.Itoa(int(fp.Refer.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(refer, "\t", fp.Refer.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.Refer.CodeDict[refer])/float64(fp.Count()), 2), "%")
@@ -918,8 +918,8 @@ func (fp *FilterPro) FString(dirt bool, afi *FilterInfo) (out string) {
 	out += "Refer:\n"
 	for _, refer := range list[:length] {
 		if afi.Format {
-			outstr := fmt.Sprintf("%s\t%s\t%s\t%s\n", refer, strconv.Itoa(int(fp.ClientIP.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.ClientIP.CodeDict[refer])/float64(fp.Count()), 2))
-			outlist := strings.Split(outstr[:len(outstr)-1], "\t")
+			outstr := fmt.Sprintf("%s\001%s\001%s\001%s\n", refer, strconv.Itoa(int(fp.ClientIP.CodeDict[refer])), strconv.Itoa(fp.Count()), FloatToString(float64(fp.ClientIP.CodeDict[refer])/float64(fp.Count()), 2))
+			outlist := strings.Split(outstr[:len(outstr)-1], "\001")
 			outdata = append(outdata, outlist)
 		} else {
 			out += fmt.Sprintln(refer, "\t", fp.ClientIP.CodeDict[refer], "\t", strconv.Itoa(fp.Count()), "\t", FloatToString(float64(fp.ClientIP.CodeDict[refer])/float64(fp.Count()), 2), "%")
