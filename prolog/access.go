@@ -3,6 +3,7 @@ package prolog
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -145,17 +146,29 @@ func (alog *AccessLog) ToFloat64(str string) float64 {
 	return n
 }
 
-// ReadFileFirstLine 读取文件的第一行
-func ReadFileFirstLine(filename string) (line string) {
-	file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
-	defer file.Close()
-	if err != nil {
-		panic(err)
+// ReadFileFirstTime 读取文件的第一行
+func ReadFileFirstTime(filename string) (t time.Time) {
+	var filereader FileReader
+	var err error
+	if JudgeGZ(filename) {
+		file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+		filereader, err = gzip.NewReader(file)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		filereader, err = os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
 	}
 	var linebyte = make([]byte, 5*logger.KB)
-	length, err := file.Read(linebyte)
+	length, err := filereader.Read(linebyte)
 	if length < 0 {
-		return ""
+		return
 	}
 	if err != nil && err != io.EOF {
 		panic(err)
@@ -170,83 +183,30 @@ func ReadFileFirstLine(filename string) (line string) {
 	if err == io.EOF {
 		return
 	}
-	return string(lineb)
+	t = timepro.StringToTime(strings.Split(string(lineb), "]")[0][1:])
+	return
 }
 
-// ReadFileLastLine 读取文件的最后一行
-func ReadFileLastLine(filename string) (line string) {
-	stat, err := os.Stat(filename)
-	if err != nil {
-		panic(err)
-	}
-	file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
-	defer file.Close()
-	if err != nil {
-		panic(err)
-	}
-	var linebyte = make([]byte, 5*logger.KB)
-	indexlog := stat.Size() - 5*logger.KB
-	if indexlog < 0 {
-		indexlog = 0
-	}
-	DeBugPrintln("file: ", filename, "filesize:", stat.Size())
-	length, err := file.ReadAt(linebyte, indexlog)
-	if length < 0 {
-		return ""
-	}
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	linebuf := string(linebyte)
-	linelist := strings.Split(linebuf, "\n")
-	if len(linelist) < 2 {
-		return ""
-	}
-	line = linelist[len(linelist)-2:][0]
-	DeBugPrintln("file-line last:", filename, string(line))
-
-	DeBugPrintln(string(line))
-	return line
+// ReadFileLastTime 读取文件的最后一行
+func ReadFileLastTime(filename string) (t time.Time) {
+	stat, _ := os.Stat(filename)
+	t = stat.ModTime()
+	return
 }
 
-func readFirstLine(linedata *[]byte) (alog *AccessLog) {
-	length := len(*linedata) - 1<<10
-	if length < 0 {
-		return nil
-	}
-	var linebyte = (*linedata)[:length]
-	linebuf := bytes.NewReader(linebyte)
-	linebufio := bufio.NewReader(linebuf)
-	line, _, err := linebufio.ReadLine()
-	if err != nil {
-		panic(err)
-	}
-	return NewAccessLog(string(line))
-
-}
-
-func readLastLine(linedata *[]byte) (alog *AccessLog) {
-	length := len(*linedata) - 1<<10
-	if length < 0 {
-		return nil
-	}
-	var linebyte = (*linedata)[length:]
-	linebuf := bytes.NewReader(linebyte)
-	linebufio := bufio.NewReader(linebuf)
-	line, _, err := linebufio.ReadLine()
-	if err != nil {
-		panic(err)
-	}
-	return NewAccessLog(string(line))
+// FileReader 文件读取接口
+type FileReader interface {
+	Read(b []byte) (n int, err error)
+	Close() error
 }
 
 // AccessFile 访问日志对象
 type AccessFile struct {
-	FirstLine *AccessLog
-	LastLine  *AccessLog
+	FirstTime time.Time
+	LastTime  time.Time
 	Stat      os.FileInfo
 	Filename  string
-	File      *os.File
+	File      FileReader
 	StartFlag int64
 	EndFlag   int64
 	All       bool
@@ -266,6 +226,14 @@ func (afile *AccessFile) Close() {
 	return
 }
 
+// JudgeGZ 判断是不是压缩文件
+func JudgeGZ(filename string) bool {
+	if strings.Contains(filename, ".gz") {
+		return true
+	}
+	return false
+}
+
 // Init AccessFile 初始化
 func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 	var err error
@@ -274,51 +242,62 @@ func (afile *AccessFile) Init(stime, etime time.Time) (ok bool) {
 		panic(err)
 	}
 	modtime := afile.Stat.ModTime()
+	if afile.Stat.Size() < 50 {
+		return false
+	}
 	DeBugPrintln("filetime sub:", afile.Filename, stime.Sub(modtime), modtime, stime, afile.Filename)
 	if stime.Sub(modtime) > 0 {
 		return false
 	}
-	afile.File, err = os.Open(afile.Filename)
-	if err != nil {
-		panic(err)
+	if JudgeGZ(afile.Filename) {
+		file, err := os.Open(afile.Filename)
+		if err != nil {
+			panic(err)
+		}
+		afile.File, err = gzip.NewReader(file)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		afile.File, err = os.Open(afile.Filename)
+		if err != nil {
+			panic(err)
+		}
 	}
-	afile.FirstLine = NewAccessLog(ReadFileFirstLine(afile.Filename))
-	afile.LastLine = NewAccessLog(ReadFileLastLine(afile.Filename))
-	DeBugPrintln("file init : ", afile.Filename, afile.FirstLine, afile.LastLine)
-	if afile.FirstLine == nil || afile.LastLine == nil {
-		return false
-	}
+	afile.FirstTime = ReadFileFirstTime(afile.Filename)
+	afile.LastTime = afile.Stat.ModTime()
+	DeBugPrintln("file init : ", afile.Filename, afile.FirstTime, afile.LastTime)
 	return true
 }
 
 // JudgeContains 判断是否包含告警需要的信息
 func (afile *AccessFile) JudgeContains(starttime, warntime time.Time) {
-	if warntime.Sub(afile.FirstLine.accessTimeToTime()) < 0 || afile.LastLine.accessTimeToTime().Sub(starttime) < 0 {
+	if warntime.Sub(afile.FirstTime) < 0 || afile.LastTime.Sub(starttime) < 0 {
 		afile.All = false
 		afile.Some = false
 		return
 	}
-	if starttime.Sub(afile.FirstLine.accessTimeToTime()) < 0 && afile.LastLine.accessTimeToTime().Sub(warntime) < 0 {
+	if starttime.Sub(afile.FirstTime) < 0 && afile.LastTime.Sub(warntime) < 0 {
 		afile.All = true
 		afile.Some = false
 		return
 	}
-	if starttime.Sub(afile.FirstLine.accessTimeToTime()) > 0 && afile.LastLine.accessTimeToTime().Sub(warntime) > 0 {
+	if starttime.Sub(afile.FirstTime) > 0 && afile.LastTime.Sub(warntime) > 0 {
 		afile.All = false
 		afile.Some = true
 		return
 	}
-	if afile.FirstLine.accessTimeToTime().Sub(starttime) > 0 && warntime.Sub(afile.FirstLine.accessTimeToTime()) > 0 {
+	if afile.FirstTime.Sub(starttime) > 0 && warntime.Sub(afile.FirstTime) > 0 {
 		afile.All = false
 		afile.Some = true
 		return
 	}
-	if afile.LastLine.accessTimeToTime().Sub(starttime) > 0 && warntime.Sub(afile.LastLine.accessTimeToTime()) > 0 {
+	if afile.LastTime.Sub(starttime) > 0 && warntime.Sub(afile.LastTime) > 0 {
 		afile.All = false
 		afile.Some = true
 		return
 	}
-	if afile.FirstLine.accessTimeToTime().Sub(starttime) > 0 && warntime.Sub(afile.LastLine.accessTimeToTime()) > 0 {
+	if afile.FirstTime.Sub(starttime) > 0 && warntime.Sub(afile.LastTime) > 0 {
 		afile.All = false
 		afile.Some = true
 		return
@@ -394,14 +373,14 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 		ok := afile.Init(apro.StartWarn, apro.EndWarn)
 		if !ok {
 			DeBugPrintln("no ok:", afile.Filename)
-			afile.File.Close()
+			// afile.File.Close()
 			continue
 		}
 		afile.JudgeContains(apro.StartWarn, apro.EndWarn)
 		DeBugPrintln("judge file: ", afile.Filename, afile.All, afile.Some)
-		DeBugPrintln("judge file first : ", afile.FirstLine)
-		DeBugPrintln("judge file last : ", afile.LastLine)
-		DeBugPrintln("judge file time: ", afile.Filename, afile.FirstLine.accessTimeToTime(), afile.LastLine.accessTimeToTime())
+		DeBugPrintln("judge file first : ", afile.FirstTime)
+		DeBugPrintln("judge file last : ", afile.LastTime)
+		DeBugPrintln("judge file time: ", afile.Filename, afile.FirstTime, afile.LastTime)
 		if afile.All || afile.Some {
 			apro.LogFile = append(apro.LogFile, afile)
 			continue
@@ -428,7 +407,7 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 		var lastdata = make([]byte, 2048)
 		for n < af.Stat.Size() {
 			var linedata = make([]byte, zonesize)
-			nu, err := af.File.ReadAt(linedata, n)
+			nu, err := af.File.Read(linedata)
 
 			DeBugPrintln(nu, n, err)
 			if err != nil && err != io.EOF {
@@ -438,7 +417,6 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 			linedata = append(lastdata, linedata...)
 			go fproLogFile(af.All, af.Some, linedata, afi, filterpro, &wg)
 			lastdata = linedata[zonesize-2048 : zonesize]
-
 			n += int64(nu)
 		}
 		wg.Wait()
@@ -482,6 +460,7 @@ func NewFilterInfo() *FilterInfo {
 	}
 }
 
+// OutTimeZone 超出时间区间
 var OutTimeZone = errors.New("Out Time Zone")
 
 // fReadLog 加载log信息

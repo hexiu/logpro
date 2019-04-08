@@ -3,6 +3,7 @@ package prolog
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -127,11 +128,11 @@ func (ulog *UpstreamLog) ToFloat64(str string) float64 {
 
 // UpstreamFile 访问日志对象
 type UpstreamFile struct {
-	FirstLine *UpstreamLog
-	LastLine  *UpstreamLog
+	FirstTime time.Time
+	LastTime  time.Time
 	Stat      os.FileInfo
 	Filename  string
-	File      *os.File
+	File      FileReader
 	StartFlag int64
 	EndFlag   int64
 	All       bool
@@ -158,47 +159,58 @@ func (ufile *UpstreamFile) Init(stime, etime time.Time) (ok bool) {
 	if stime.Sub(modtime) > 0 {
 		return false
 	}
-	ufile.File, err = os.Open(ufile.Filename)
-	if err != nil {
-		panic(err)
-	}
-	ufile.FirstLine = NewUpstreamLog(ReadFileFirstLine(ufile.Filename))
-	ufile.LastLine = NewUpstreamLog(ReadFileLastLine(ufile.Filename))
-
-	if ufile.FirstLine == nil || ufile.LastLine == nil {
+	if ufile.Stat.Size() < 50 {
 		return false
 	}
+	if JudgeGZ(ufile.Filename) {
+		file, err := os.Open(ufile.Filename)
+		if err != nil {
+			panic(err)
+		}
+		ufile.File, err = gzip.NewReader(file)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		ufile.File, err = os.Open(ufile.Filename)
+		if err != nil {
+			panic(err)
+		}
+	}
+	ufile.FirstTime = ReadFileFirstTime(ufile.Filename)
+	ufile.LastTime = modtime
+
 	return true
 }
 
 // JudgeContains 判断是否包含告警需要的信息
 func (ufile *UpstreamFile) JudgeContains(starttime, warntime time.Time) {
-	if warntime.Sub(ufile.FirstLine.UpstreamTimeToTime()) < 0 || ufile.LastLine.UpstreamTimeToTime().Sub(starttime) < 0 {
+	if warntime.Sub(ufile.FirstTime) < 0 || ufile.LastTime.Sub(starttime) < 0 {
 		ufile.All = false
 		ufile.Some = false
 		return
 	}
-	if starttime.Sub(ufile.FirstLine.UpstreamTimeToTime()) < 0 && ufile.LastLine.UpstreamTimeToTime().Sub(warntime) < 0 {
+	if starttime.Sub(ufile.FirstTime) < 0 && ufile.LastTime.Sub(warntime) < 0 {
 		ufile.All = true
 		ufile.Some = false
 		return
 	}
-	if starttime.Sub(ufile.FirstLine.UpstreamTimeToTime()) > 0 && ufile.LastLine.UpstreamTimeToTime().Sub(warntime) > 0 {
+	if starttime.Sub(ufile.FirstTime) > 0 && ufile.LastTime.Sub(warntime) > 0 {
 		ufile.All = false
 		ufile.Some = true
 		return
 	}
-	if ufile.FirstLine.UpstreamTimeToTime().Sub(starttime) > 0 && warntime.Sub(ufile.FirstLine.UpstreamTimeToTime()) > 0 {
+	if ufile.FirstTime.Sub(starttime) > 0 && warntime.Sub(ufile.FirstTime) > 0 {
 		ufile.All = false
 		ufile.Some = true
 		return
 	}
-	if ufile.LastLine.UpstreamTimeToTime().Sub(starttime) > 0 && warntime.Sub(ufile.LastLine.UpstreamTimeToTime()) > 0 {
+	if ufile.LastTime.Sub(starttime) > 0 && warntime.Sub(ufile.LastTime) > 0 {
 		ufile.All = false
 		ufile.Some = true
 		return
 	}
-	if ufile.FirstLine.UpstreamTimeToTime().Sub(starttime) > 0 && warntime.Sub(ufile.LastLine.UpstreamTimeToTime()) > 0 {
+	if ufile.FirstTime.Sub(starttime) > 0 && warntime.Sub(ufile.LastTime) > 0 {
 		ufile.All = false
 		ufile.Some = true
 		return
@@ -597,14 +609,14 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 		ufile := NewUpstreamFile(file)
 		ok := ufile.Init(upro.StartWarn, upro.EndWarn)
 		if !ok {
-			ufile.File.Close()
+			// ufile.File.Close()
 			continue
 		}
 		ufile.JudgeContains(upro.StartWarn, upro.EndWarn)
 		DeBugPrintln("ufile:", ufile.All, ufile.Some)
-		DeBugPrintln(ufile.FirstLine)
-		DeBugPrintln(ufile.LastLine)
-		DeBugPrintln(ufile.Filename, ufile.FirstLine.UpstreamTimeToTime(), ufile.LastLine.UpstreamTimeToTime())
+		DeBugPrintln(ufile.FirstTime)
+		DeBugPrintln(ufile.LastTime)
+		DeBugPrintln(ufile.Filename, ufile.FirstTime, ufile.LastTime)
 		if ufile.All || ufile.Some {
 			upro.LogFile = append(upro.LogFile, ufile)
 			continue
@@ -629,7 +641,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 		var lastdata = make([]byte, 2048)
 		for n < uf.Stat.Size() {
 			var linedata = make([]byte, zonesize)
-			nu, err := uf.File.ReadAt(linedata, n)
+			nu, err := uf.File.Read(linedata)
 
 			DeBugPrintln(nu, n, err)
 			if err != nil && err != io.EOF {
