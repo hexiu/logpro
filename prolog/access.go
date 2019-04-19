@@ -409,14 +409,17 @@ func (apro *AccessPro) FProLogFile(files []string, afi *FilterInfo, filterpro *F
 			var linedata = make([]byte, zonesize)
 			nu, err := af.File.Read(linedata)
 
-			DeBugPrintln(nu, n, err)
+			DeBugPrintln("read size:", nu, n, err)
 			if err != nil && err != io.EOF {
 				break
 			}
 			wg.Add(1)
 			linedata = append(lastdata, linedata...)
 			go fproLogFile(af.All, af.Some, linedata, afi, filterpro, &wg)
-			lastdata = linedata[zonesize-2048 : zonesize]
+			if nu < 2048 {
+				break
+			}
+			lastdata = linedata[nu-2048 : nu]
 			n += int64(nu)
 		}
 		wg.Wait()
@@ -948,6 +951,10 @@ func fproLogFile(all, some bool, linedata []byte, afi *FilterInfo, fpro *FilterP
 		DeBugPrintln(len(linedata), indexlog)
 		linedata = (linedata)[indexlog:]
 	}
+	if !judgedatazone(linedata, afi) {
+		return
+	}
+
 	linebuf := bytes.NewBuffer(linedata)
 	lineread := bufio.NewReader(linebuf)
 	_, err := fReadLog(lineread, afi, fpro)
