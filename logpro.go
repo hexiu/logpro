@@ -146,7 +146,7 @@ func commUAction(c *cli.Context) {
 		}
 		path = filepath.Join(basepath, path)
 	}
-	files, err := prolog.ListDirFile(path, `(hy_access.*)|(upstream.*)`)
+	files, err := prolog.ListDirFile(path, `/(hy_access.*)|(^upstream.*)`)
 	if err != nil {
 		log.Println(err)
 	}
@@ -320,7 +320,7 @@ func commAction(c *cli.Context) {
 		}
 		path = filepath.Join(basepath, path)
 	}
-	files, err := prolog.ListDirFile(path, "access")
+	files, err := prolog.ListDirFile(path, "/access")
 	if err != nil {
 		log.Println(err)
 	}
