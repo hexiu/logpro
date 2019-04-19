@@ -643,7 +643,7 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 			var linedata = make([]byte, zonesize)
 			nu, err := uf.File.Read(linedata)
 
-			DeBugPrintln(nu, n, err)
+			DeBugPrintln("read size:", nu, n, err)
 			if err != nil && err != io.EOF {
 				break
 			}
@@ -652,8 +652,10 @@ func (upro *UpstreamPro) FProLogFile(files []string, ufi *FilterInfo, filterpro 
 				linedata = append(lastdata, linedata...)
 			}
 			go fproUpstreamLogFile(uf.All, uf.Some, linedata, ufi, filterpro, &wg)
-			lastdata = linedata[zonesize-2048 : zonesize]
-
+			if nu < 2048 {
+				break
+			}
+			lastdata = linedata[nu-2048 : nu]
 			n += int64(nu)
 		}
 		wg.Wait()
@@ -695,6 +697,9 @@ func fproUpstreamLogFile(all, some bool, linedata []byte, ufi *FilterInfo, fpro 
 		}
 		DeBugPrintln(len(linedata), indexlog)
 		linedata = (linedata)[indexlog:]
+	}
+	if !judgedatazone(linedata, ufi) {
+		return
 	}
 	linebuf := bytes.NewBuffer(linedata)
 	lineread := bufio.NewReader(linebuf)
@@ -863,4 +868,76 @@ func ulogFilter(ulog *UpstreamLog, ufi *FilterInfo, filterpro *FilterUPro, i int
 
 	}
 	return filterpro, true, err
+}
+
+func judgedatazone(linedata []byte, fi *FilterInfo) (contain bool) {
+	defer func() {
+		DeBugPrintln("datazone judge:", contain)
+		return
+	}()
+	DeBugPrintln("datazone judge: len", len(linedata), string(linedata[:300]))
+
+	if int64(len(linedata)) < 1*logger.MB {
+		contain = true
+		return
+	}
+
+	index := bytes.Index(linedata, []byte("\n"))
+	if index == -1 {
+		return true
+	}
+	linedata = linedata[index+1:]
+	index = bytes.Index(linedata, []byte("\n"))
+	if index == -1 {
+		return true
+	}
+	firstline := linedata[:index]
+	DeBugPrintln("datazone judge:", index, string(firstline))
+	firsttemp := strings.Split(string(firstline), "\001")[0]
+
+	linedata = linedata[len(linedata)-4096:]
+	DeBugPrintln("datazone judge:", "last:", string(linedata), "\n\n")
+	index = bytes.Index(linedata, []byte("\n"))
+	if index == -1 {
+		return true
+	}
+	linedata = linedata[index+1:]
+	DeBugPrintln("datazone judge:", "last2:", index, string(linedata), "\n\n")
+	linelist := strings.Split(string(linedata), "\n")
+	var lastline string
+
+	if len(linelist) < 2 {
+		contain = false
+		return
+	}
+
+	lastline = linelist[len(linelist)-2]
+
+	DeBugPrintln("datazone judge:", "last3:", index, string(lastline), "\n\n")
+	DeBugPrintln("datazone judge:", "firstline---------:", string(firstline))
+	lasttemp := strings.Split(string(lastline), "\001")[0]
+	if len(firsttemp) > 2048 {
+		firsttemp = firsttemp[2048:]
+	}
+	// fmt.Println(firsttemp)
+	// fmt.Println(lasttemp, len(lastline))
+	if len(lasttemp) > 2048 {
+		lasttemp = lasttemp[2048:]
+	}
+	DeBugPrintln("datazone judge:", "first:", firsttemp, len(firsttemp))
+	DeBugPrintln("datazone judge:", "last:", lasttemp, len(lasttemp))
+	if len(firsttemp) < 20 || len(lasttemp) < 20 {
+		contain = false
+		return
+	}
+	// fmt.Println("firsttime:", firsttemp, len(firsttemp), firsttemp[:5], "aaaaaaa"[:5], strings.Split(string(firstline), "\001")[0][:20])
+	firsttime := timepro.StringToTime(firsttemp[1:20])
+	lasttime := timepro.StringToTime(lasttemp[1:20])
+	DeBugPrintln("datazone judge: ", firsttime, lasttime)
+	if firsttime.Sub(fi.EndWarn) > 0 || lasttime.Sub(fi.StartWarn) < 0 {
+		contain = false
+		return
+	}
+	contain = true
+	return
 }
